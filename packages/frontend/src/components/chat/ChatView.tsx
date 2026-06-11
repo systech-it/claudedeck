@@ -11,7 +11,7 @@ import type { ServerMessage } from '@claudedeck/shared';
 import { Bot, Cpu, Zap, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores/settings.store';
-import { useUsage } from '@/hooks/useUsage';
+import type { UsageData } from '@/hooks/useUsage';
 import { UsageChip } from './UsageChip';
 
 // Map model IDs to short display labels
@@ -33,9 +33,9 @@ export function ChatView() {
 
   const { defaultModel, defaultEffort } = useSettingsStore();
 
-  // Model/effort owned here so they're visible in the header; init from user defaults
   const [model, setModel] = useState<string | undefined>(defaultModel);
   const [effort, setEffort] = useState<string | undefined>(defaultEffort);
+  const [permissionMode, setPermissionMode] = useState<string>('default');
 
   const messages = useChatStore((s) => s.messages[activeSessionId] ?? []);
   const isStreaming = useChatStore((s) => s.streamingIds.has(activeSessionId));
@@ -152,6 +152,7 @@ export function ChatView() {
           }
           setStreaming(sid, false);
           api.sessions.list().then(setSessions).catch(console.error);
+          api.usage.get().then(setUsageData).catch(() => {});
           break;
 
         case 'error':
@@ -181,9 +182,9 @@ export function ChatView() {
   const handleSend = useCallback(
     (content: string) => {
       addMessage(activeSessionId, { id: newMsgId(), role: 'user', content });
-      wsClient.send({ type: 'send_message', sessionId: activeSessionId, content, model, effort });
+      wsClient.send({ type: 'send_message', sessionId: activeSessionId, content, model, effort, permissionMode: permissionMode !== 'default' ? permissionMode : undefined });
     },
-    [activeSessionId, addMessage, model, effort]
+    [activeSessionId, addMessage, model, effort, permissionMode]
   );
 
   const handleStop = useCallback(() => {
@@ -206,7 +207,11 @@ export function ChatView() {
   );
 
   const modelLabel = model ? MODEL_LABELS[model] ?? model : null;
-  const usage = useUsage();
+  const [usageData, setUsageData] = useState<UsageData | null>(null);
+  useEffect(() => {
+    api.usage.get().then(setUsageData).catch(() => {});
+  }, []);
+  const usage = usageData;
 
   return (
     <div className="flex h-full flex-col">
@@ -271,8 +276,10 @@ export function ChatView() {
         disabled={!wsConnected}
         model={model}
         effort={effort}
+        permissionMode={permissionMode}
         onModelChange={setModel}
         onEffortChange={setEffort}
+        onPermissionModeChange={setPermissionMode}
       />
     </div>
   );

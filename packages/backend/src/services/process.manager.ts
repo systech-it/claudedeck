@@ -49,7 +49,7 @@ export function spawnClaudeProcess(
   userId: string,
   message: string,
   claudeSessionId: string | null,
-  opts: { model?: string; effort?: string; usesServerClaudeDir?: boolean } = {}
+  opts: { model?: string; effort?: string; permissionMode?: string; usesServerClaudeDir?: boolean } = {}
 ): EventEmitter {
   const existing = activeProcesses.get(sessionId);
   if (existing) {
@@ -81,6 +81,7 @@ export function spawnClaudeProcess(
   if (claudeSessionId) args.push('--resume', claudeSessionId);
   if (opts.model) args.push('--model', opts.model);
   if (opts.effort) args.push('--effort', opts.effort);
+  if (opts.permissionMode) args.push('--permission-mode', opts.permissionMode);
   args.push('-p', message);
 
   const ptyProcess = pty.spawn(config.claudeBin, args, {

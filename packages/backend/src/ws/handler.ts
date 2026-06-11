@@ -67,6 +67,7 @@ export function handleWsConnection(
         const emitter = spawnClaudeProcess(session.id, userId, content, claudeSessionId, {
           model: (msg as { model?: string }).model,
           effort: (msg as { effort?: string }).effort,
+          permissionMode: (msg as { permissionMode?: string }).permissionMode,
           usesServerClaudeDir: session.usesServerClaudeDir ?? false,
         });
 
