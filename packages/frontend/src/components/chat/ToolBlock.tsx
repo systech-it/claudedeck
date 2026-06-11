@@ -63,13 +63,13 @@ export function ToolBlock({ tool }: Props) {
 
       {open && (
         <div className="border-t border-border/50 px-3 py-2">
-          {tool.input && (
+          {Boolean(tool.input) && (
             <div className="mb-2">
               <div className="mb-1 text-muted-foreground">Input</div>
               <pre className="overflow-x-auto whitespace-pre-wrap break-words text-foreground">
                 {typeof tool.input === 'object'
-                  ? JSON.stringify(tool.input, null, 2)
-                  : String(tool.input)}
+                  ? JSON.stringify(tool.input as Record<string, unknown>, null, 2)
+                  : String(tool.input as string)}
               </pre>
             </div>
           )}

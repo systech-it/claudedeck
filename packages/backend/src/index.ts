@@ -64,7 +64,7 @@ async function buildApp() {
     '/ws',
     { websocket: true },
     (socket, request) => {
-      handleWsConnection(socket, request as any);
+      handleWsConnection(socket as unknown as import('ws').WebSocket, request as any);
     }
   );
 

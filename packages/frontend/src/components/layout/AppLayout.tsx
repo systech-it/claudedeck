@@ -41,9 +41,9 @@ export function AppLayout({ children }: Props) {
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <span className="flex-1 font-logo text-base font-semibold tracking-tight text-foreground">ClaudeDeck</span>
             {wsConnected ? (
-              <Wifi className="h-3.5 w-3.5 text-green-400" title="Connected" />
+              <Wifi className="h-3.5 w-3.5 text-green-400" aria-label="Connected" />
             ) : (
-              <WifiOff className="h-3.5 w-3.5 text-muted-foreground" title="Disconnected" />
+              <WifiOff className="h-3.5 w-3.5 text-muted-foreground" aria-label="Disconnected" />
             )}
           </div>
 

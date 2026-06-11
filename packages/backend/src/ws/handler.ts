@@ -1,4 +1,4 @@
-import type { WebSocket } from '@fastify/websocket';
+import type { WebSocket } from 'ws';
 import type { FastifyRequest } from 'fastify';
 import type { ClientMessage, ServerMessage } from '@claudedeck/shared';
 import {
@@ -147,7 +147,7 @@ export function handleWsConnection(
     if (pingTimer) clearInterval(pingTimer);
   });
 
-  socket.on('error', (err) => {
+  socket.on('error', (err: Error) => {
     console.error('[ws] socket error:', err.message);
     if (pingTimer) clearInterval(pingTimer);
   });

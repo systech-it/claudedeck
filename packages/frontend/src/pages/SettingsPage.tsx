@@ -5,13 +5,12 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/auth.store';
 import { api } from '@/api/http';
-import type { SystemInfo, VersionInfo } from '@claudedeck/shared';
+import type { VersionInfo } from '@claudedeck/shared';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
-  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
 
   useEffect(() => {
     api.system.updateCheck().then(setVersionInfo).catch(() => {});

@@ -18,11 +18,11 @@ export function PermissionDialog({ permission, onRespond }: Props) {
       <p className="mb-1 text-sm font-medium text-foreground">{permission.toolName}</p>
       <p className="mb-4 text-sm text-muted-foreground">{permission.description}</p>
 
-      {permission.toolInput && (
+      {Boolean(permission.toolInput) && (
         <pre className="mb-4 max-h-32 overflow-y-auto rounded border border-border/50 bg-background/50 p-2 text-xs text-muted-foreground">
           {typeof permission.toolInput === 'object'
-            ? JSON.stringify(permission.toolInput, null, 2)
-            : String(permission.toolInput)}
+            ? JSON.stringify(permission.toolInput as Record<string, unknown>, null, 2)
+            : String(permission.toolInput as string)}
         </pre>
       )}
 
