@@ -2,14 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github-dark.css';
-import { Bot, User, DollarSign } from 'lucide-react';
+import { Bot, User, DollarSign, Brain, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ToolBlock } from './ToolBlock';
 import { ThinkingBlock } from './ThinkingBlock';
-import { Brain } from 'lucide-react';
 import type { ChatMessage } from '@/stores/chat.store';
 
-// characters revealed per animation frame (~60fps → ~240 chars/s)
 const CHARS_PER_FRAME = 4;
 
 interface Props {
@@ -47,34 +45,45 @@ export function Message({ message }: Props) {
   const contentToShow = message.isStreaming ? displayedContent : message.content;
   const showThinkingIndicator = message.isStreaming && !message.content;
   const showCursor = message.isStreaming && !!contentToShow;
-  const hasWorkItems = message.thinking || (message.tools && message.tools.length > 0);
+  const hasTools = message.tools && message.tools.length > 0;
+  const hasThinking = !!message.thinking;
 
   return (
     <div className={cn('group flex gap-2.5 px-4 py-2', isUser ? 'flex-row-reverse' : 'flex-row')}>
-      <div
-        className={cn(
-          'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px]',
-          isUser ? 'bg-primary/20 text-primary' : 'bg-secondary text-secondary-foreground'
-        )}
-      >
+      {/* Avatar */}
+      <div className={cn(
+        'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full',
+        isUser
+          ? 'bg-primary/20 text-primary'
+          : 'bg-gradient-to-br from-orange-500/30 to-amber-600/20 text-orange-400'
+      )}>
         {isUser ? <User className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5" />}
       </div>
 
-      <div className={cn('min-w-0 max-w-[85%]', isUser ? 'items-end' : 'items-start')}>
+      <div className={cn('min-w-0 max-w-[85%] flex flex-col gap-1.5', isUser ? 'items-end' : 'items-start')}>
 
-        {/* Work section — thinking + tools, visually distinct from response */}
-        {!isUser && hasWorkItems && (
-          <div className="mb-2 space-y-1 rounded-lg border border-border/40 bg-background/40 p-2">
-            {message.thinking && <ThinkingBlock text={message.thinking} />}
-            {message.tools?.map((tool) => <ToolBlock key={tool.id} tool={tool} />)}
+        {/* ── WORKFLOW PANEL (thinking + tools) — clearly not a chat bubble ── */}
+        {!isUser && (hasThinking || hasTools) && (
+          <div className="w-full rounded-lg overflow-hidden border border-border/60 bg-muted/20">
+            {/* Panel header */}
+            <div className="flex items-center gap-1.5 border-b border-border/40 bg-muted/40 px-2.5 py-1">
+              <Wrench className="h-3 w-3 text-muted-foreground/60" />
+              <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/60">
+                Work
+              </span>
+            </div>
+            <div className="p-2 space-y-1">
+              {hasThinking && <ThinkingBlock text={message.thinking!} />}
+              {message.tools?.map((tool) => <ToolBlock key={tool.id} tool={tool} />)}
+            </div>
           </div>
         )}
 
-        {/* Thinking / waiting indicator */}
+        {/* Thinking indicator (waiting for first token) */}
         {showThinkingIndicator && (
-          <div className="mb-2 flex items-center gap-2 rounded-lg border border-border/40 bg-background/40 px-3 py-2 text-[11px] text-muted-foreground">
+          <div className="w-full flex items-center gap-2 rounded-lg border border-border/40 bg-muted/20 px-3 py-2">
             <Brain className="h-3.5 w-3.5 shrink-0 animate-pulse text-violet-400" />
-            <span className="animate-pulse">
+            <span className="text-[11px] animate-pulse text-muted-foreground">
               {message.thinkingTokens
                 ? `Thinking… ${message.thinkingTokens.toLocaleString()} tokens`
                 : 'Thinking…'}
@@ -87,33 +96,47 @@ export function Message({ message }: Props) {
           </div>
         )}
 
-        {/* Main response bubble */}
+        {/* ── RESPONSE BUBBLE — the actual chat message ── */}
         {contentToShow && (
-          <div
-            className={cn(
-              'rounded-lg px-3 py-2.5',
-              isUser ? 'bg-primary/10 text-foreground' : 'bg-muted/50 text-foreground'
-            )}
-          >
-            <div className="prose prose-sm max-w-none [&_*]:text-[11px] [&_*]:leading-relaxed dark:[&_p]:text-foreground dark:[&_li]:text-foreground dark:[&_td]:text-foreground">
+          <div className={cn(
+            'rounded-2xl px-3.5 py-2.5',
+            isUser
+              ? 'bg-primary/15 rounded-tr-sm'
+              : 'bg-muted/60 rounded-tl-sm'
+          )}>
+            <div className="prose prose-sm max-w-none text-foreground">
               <ReactMarkdown
                 rehypePlugins={[rehypeHighlight]}
                 components={{
-                  p: ({ children }) => <p className="mb-2 last:mb-0 text-[11px] leading-relaxed">{children}</p>,
-                  li: ({ children }) => <li className="text-[11px] leading-relaxed">{children}</li>,
+                  p: ({ children }) => (
+                    <p className="mb-2 last:mb-0 text-[11px] leading-relaxed text-foreground">{children}</p>
+                  ),
+                  ul: ({ children }) => <ul className="mb-2 pl-4 text-[11px]">{children}</ul>,
+                  ol: ({ children }) => <ol className="mb-2 pl-4 text-[11px]">{children}</ol>,
+                  li: ({ children }) => <li className="mb-0.5 text-[11px] leading-relaxed text-foreground">{children}</li>,
+                  h1: ({ children }) => <h1 className="text-sm font-bold mb-2 text-foreground">{children}</h1>,
+                  h2: ({ children }) => <h2 className="text-xs font-bold mb-1.5 text-foreground">{children}</h2>,
+                  h3: ({ children }) => <h3 className="text-[11px] font-bold mb-1 text-foreground">{children}</h3>,
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-2 border-primary/40 pl-3 text-[11px] text-muted-foreground my-2">
+                      {children}
+                    </blockquote>
+                  ),
                   code({ node: _node, className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || '');
                     const isBlock = match || String(children).includes('\n');
                     if (isBlock) {
                       return (
-                        <div className="relative my-2 overflow-hidden rounded border border-border/50 bg-background/80">
+                        <div className="relative my-2 overflow-hidden rounded-lg border border-border/60 bg-background/80">
                           {match && (
-                            <div className="border-b border-border/50 px-3 py-0.5 text-[10px] text-muted-foreground">
-                              {match[1]}
+                            <div className="flex items-center justify-between border-b border-border/40 bg-muted/40 px-3 py-1">
+                              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                                {match[1]}
+                              </span>
                             </div>
                           )}
-                          <pre className="overflow-x-auto p-2.5">
-                            <code className={cn(className, 'text-[11px]')} {...props}>
+                          <pre className="overflow-x-auto p-3">
+                            <code className={cn(className, 'text-[11px] font-mono leading-relaxed')} {...props}>
                               {children}
                             </code>
                           </pre>
@@ -121,7 +144,10 @@ export function Message({ message }: Props) {
                       );
                     }
                     return (
-                      <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]" {...props}>
+                      <code
+                        className="rounded-md bg-muted/80 border border-border/40 px-1 py-0.5 font-mono text-[10px] text-foreground"
+                        {...props}
+                      >
                         {children}
                       </code>
                     );
@@ -139,7 +165,7 @@ export function Message({ message }: Props) {
 
         {/* Cost / usage metadata */}
         {!isUser && (message.costUsd !== undefined || message.durationMs !== undefined) && (
-          <div className="mt-1 flex items-center gap-3 text-[10px] text-muted-foreground/50">
+          <div className="flex items-center gap-3 text-[10px] text-muted-foreground/40 px-1">
             {message.costUsd !== undefined && (
               <span className="flex items-center gap-0.5">
                 <DollarSign className="h-2.5 w-2.5" />

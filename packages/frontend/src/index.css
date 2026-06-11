@@ -5,45 +5,47 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 20 14% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --card-foreground: 20 14% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 12%;
+    --primary: 24 90% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 24 12% 94%;
+    --secondary-foreground: 20 14% 20%;
+    --muted: 24 12% 94%;
+    --muted-foreground: 20 8% 48%;
+    --accent: 24 12% 90%;
+    --accent-foreground: 20 14% 20%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 24 12% 88%;
+    --input: 24 12% 88%;
+    --ring: 24 90% 48%;
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 220 13% 9%;
-    --foreground: 210 10% 87%;
-    --card: 220 13% 12%;
-    --card-foreground: 210 10% 87%;
-    --popover: 220 15% 17%;
-    --popover-foreground: 210 10% 91%;
-    --primary: 213 93% 67%;
-    --primary-foreground: 220 40% 8%;
-    --secondary: 220 13% 19%;
-    --secondary-foreground: 210 10% 80%;
-    --muted: 220 13% 15%;
-    --muted-foreground: 215 12% 52%;
-    --accent: 220 13% 22%;
-    --accent-foreground: 210 10% 92%;
+    --background: 22 12% 9%;
+    --foreground: 30 10% 87%;
+    --card: 22 12% 12%;
+    --card-foreground: 30 10% 87%;
+    --popover: 22 14% 17%;
+    --popover-foreground: 30 10% 91%;
+    --primary: 24 90% 55%;
+    --primary-foreground: 22 20% 7%;
+    --secondary: 22 12% 19%;
+    --secondary-foreground: 30 10% 80%;
+    --muted: 22 12% 15%;
+    --muted-foreground: 25 8% 52%;
+    --accent: 22 12% 22%;
+    --accent-foreground: 30 10% 92%;
     --destructive: 0 63% 50%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 13% 24%;
-    --input: 220 13% 13%;
-    --ring: 213 93% 67%;
+    --border: 22 12% 24%;
+    --input: 22 12% 13%;
+    --ring: 24 90% 55%;
   }
 }
 
@@ -76,4 +78,15 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground));
+}
+
+/* Claude-style gradient used in logo and accents */
+.claude-gradient {
+  background: linear-gradient(135deg, #d97225 0%, #cc4e1a 50%, #b5390f 100%);
+}
+.claude-gradient-text {
+  background: linear-gradient(135deg, #e8852e 0%, #d4511e 60%, #bf3d10 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }

@@ -32,6 +32,20 @@ export const EFFORTS: EffortOption[] = [
   { id: 'max',      label: 'Max',     desc: 'Maximum reasoning, uses most tokens'   },
 ];
 
+// Efforts available per model — Haiku doesn't support extended thinking
+const MODEL_EFFORT_IDS: Record<string, Array<string | undefined>> = {
+  'default':                    [undefined, 'low', 'medium', 'high'],
+  'claude-fable-5':             [undefined, 'low', 'medium', 'high', 'xhigh', 'max'],
+  'claude-opus-4-8':            [undefined, 'low', 'medium', 'high', 'xhigh', 'max'],
+  'claude-sonnet-4-6':          [undefined, 'low', 'medium', 'high'],
+  'claude-haiku-4-5-20251001':  [undefined],
+};
+
+function getEffortsForModel(modelId: string | undefined): EffortOption[] {
+  const allowed = MODEL_EFFORT_IDS[modelId ?? 'default'] ?? MODEL_EFFORT_IDS['default'];
+  return EFFORTS.filter((e) => allowed.includes(e.id));
+}
+
 interface Props {
   onSend: (content: string) => void;
   onStop: () => void;
@@ -49,6 +63,9 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled, model, effort
   const [showModels, setShowModels] = useState(false);
   const [showEfforts, setShowEfforts] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const availableEfforts = getEffortsForModel(model);
+  const effortSupported = availableEfforts.length > 1;
 
   useEffect(() => {
     const ta = textareaRef.current;
@@ -100,7 +117,15 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled, model, effort
               return (
                 <button
                   key={m.id ?? '_default'}
-                  onClick={() => { onModelChange(m.id); setShowModels(false); }}
+                  onClick={() => {
+                    onModelChange(m.id);
+                    // Reset effort if it's not supported by the new model
+                    const newEfforts = getEffortsForModel(m.id);
+                    if (effort && !newEfforts.some(e => e.id === effort)) {
+                      onEffortChange(undefined);
+                    }
+                    setShowModels(false);
+                  }}
                   className={cn(
                     'flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent',
                     isSelected && 'bg-accent/60'
@@ -134,7 +159,7 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled, model, effort
             <div className="border-b border-border px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Thinking effort
             </div>
-            {EFFORTS.map((ef) => {
+            {availableEfforts.map((ef) => {
               const isSelected = ef.id === effort;
               return (
                 <button
@@ -178,17 +203,21 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled, model, effort
             </button>
 
             <button
-              onClick={(e) => { e.stopPropagation(); setShowEfforts((p) => !p); setShowModels(false); }}
+              onClick={(e) => { if (!effortSupported) return; e.stopPropagation(); setShowEfforts((p) => !p); setShowModels(false); }}
+              disabled={!effortSupported}
+              title={!effortSupported ? 'Haiku does not support extended thinking' : undefined}
               className={cn(
                 'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors border',
-                !effortIsDefault
-                  ? 'border-primary/40 bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground'
+                !effortSupported
+                  ? 'border-border/40 text-muted-foreground/40 cursor-not-allowed'
+                  : !effortIsDefault
+                    ? 'border-primary/40 bg-primary/10 text-primary'
+                    : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
             >
               <Zap className="h-3 w-3" />
-              <span>Effort · {activeEffort.label}</span>
-              <ChevronUp className={cn('h-3 w-3 opacity-60 transition-transform', showEfforts && 'rotate-180')} />
+              <span>{!effortSupported ? 'No thinking' : `Effort · ${activeEffort.label}`}</span>
+              {effortSupported && <ChevronUp className={cn('h-3 w-3 opacity-60 transition-transform', showEfforts && 'rotate-180')} />}
             </button>
           </div>
 
