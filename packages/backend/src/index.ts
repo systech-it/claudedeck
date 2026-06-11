@@ -72,7 +72,7 @@ async function buildApp() {
   await fastify.register(sessionRoutes);
   await fastify.register(systemRoutes);
 
-  const frontendDist = join(__dirname, '../../../frontend/dist');
+  const frontendDist = join(__dirname, '../../frontend/dist');
   if (existsSync(frontendDist)) {
     await fastify.register(fastifyStatic, {
       root: frontendDist,
