@@ -17,6 +17,7 @@ export function ChatView() {
   const messages = useChatStore((s) => s.messages[activeSessionId] ?? []);
   const isStreaming = useChatStore((s) => s.streamingIds.has(activeSessionId));
   const permission = useChatStore((s) => s.pendingPermissions[activeSessionId] ?? null);
+  const wsConnected = useChatStore((s) => s.wsConnected);
 
   const {
     addMessage,
@@ -155,7 +156,7 @@ export function ChatView() {
         onSend={handleSend}
         onStop={handleStop}
         isStreaming={isStreaming}
-        disabled={!useChatStore.getState().wsConnected}
+        disabled={!wsConnected}
       />
     </div>
   );

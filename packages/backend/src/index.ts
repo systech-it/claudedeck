@@ -63,8 +63,25 @@ async function buildApp() {
   fastify.get(
     '/ws',
     { websocket: true },
-    (socket, request) => {
-      handleWsConnection(socket as unknown as import('ws').WebSocket, request as any);
+    async (socket, request) => {
+      const ws = socket as unknown as import('ws').WebSocket;
+      try {
+        await (request as any).jwtVerify();
+      } catch {
+        const token = ((request.query as Record<string, string>) ?? {}).token;
+        if (token) {
+          try {
+            (request as any).user = fastify.jwt.verify(token);
+          } catch {
+            ws.close(4001, 'Unauthorized');
+            return;
+          }
+        } else {
+          ws.close(4001, 'Unauthorized');
+          return;
+        }
+      }
+      handleWsConnection(ws, request as any);
     }
   );
 
