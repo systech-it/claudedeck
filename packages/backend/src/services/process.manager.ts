@@ -44,6 +44,18 @@ export function getProcessEmitter(sessionId: string): EventEmitter | null {
 
 const SERVER_CLAUDE_DIR = join(process.env.HOME ?? '/root', '.claude');
 
+function buildContent(message: string, attachments?: Array<{ name: string; mimeType: string; data: string }>): unknown[] {
+  const content: unknown[] = [{ type: 'text', text: message }];
+  for (const att of attachments ?? []) {
+    if (att.mimeType.startsWith('image/')) {
+      content.push({ type: 'image', source: { type: 'base64', media_type: att.mimeType, data: att.data } });
+    } else {
+      content.push({ type: 'text', text: `\n[Attached file: ${att.name}]\n` });
+    }
+  }
+  return content;
+}
+
 export function spawnClaudeProcess(
   sessionId: string,
   userId: string,
@@ -51,6 +63,17 @@ export function spawnClaudeProcess(
   claudeSessionId: string | null,
   opts: { model?: string; effort?: string; permissionMode?: string; remoteControl?: boolean; usesServerClaudeDir?: boolean; attachments?: Array<{ name: string; mimeType: string; data: string }> } = {}
 ): EventEmitter {
+  // Dla Remote Control: jeśli proces już żyje, wyślij kolejną wiadomość do istniejącego stdin
+  if (opts.remoteControl) {
+    const existing = activeProcesses.get(sessionId);
+    if (existing) {
+      const content = buildContent(message, opts.attachments);
+      const inputLine = JSON.stringify({ type: 'user', message: { role: 'user', content } });
+      try { existing.pty.write(inputLine + '\n'); } catch { /* process może już być martwy */ }
+      return existing.emitter;
+    }
+  }
+
   const existing = activeProcesses.get(sessionId);
   if (existing) {
     existing.pty.kill();
@@ -82,10 +105,12 @@ export function spawnClaudeProcess(
   if (claudeSessionId) args.push('--resume', claudeSessionId);
   if (opts.model) args.push('--model', opts.model);
   if (opts.effort) args.push('--effort', opts.effort);
-  // permissionMode z UI, ale Remote Control nadpisuje na 'auto' (--dangerously-skip-permissions jest zablokowane na root)
-  const effectivePermissionMode = opts.remoteControl ? 'auto' : opts.permissionMode;
-  if (effectivePermissionMode) args.push('--permission-mode', effectivePermissionMode);
-  if (hasAttachments) {
+  if (opts.permissionMode) args.push('--permission-mode', opts.permissionMode);
+
+  if (opts.remoteControl) {
+    // Tryb interaktywny z Remote Control: proces żyje przez całą sesję, wiadomości przez stdin
+    args.push('--remote-control', '--input-format', 'stream-json');
+  } else if (hasAttachments) {
     args.push('--input-format', 'stream-json', '--print');
   } else {
     args.push('-p', message);
@@ -117,16 +142,9 @@ export function spawnClaudeProcess(
 
   activeProcesses.set(sessionId, proc);
 
-  // For messages with attachments, send structured JSON to stdin
-  if (hasAttachments) {
-    const content: unknown[] = [{ type: 'text', text: message }];
-    for (const att of opts.attachments!) {
-      if (att.mimeType.startsWith('image/')) {
-        content.push({ type: 'image', source: { type: 'base64', media_type: att.mimeType, data: att.data } });
-      } else {
-        content.push({ type: 'text', text: `\n[Attached file: ${att.name}]\n` });
-      }
-    }
+  // Dla RC i załączników — wyślij pierwszą wiadomość przez stdin zamiast -p
+  if (opts.remoteControl || hasAttachments) {
+    const content = buildContent(message, opts.attachments);
     const inputLine = JSON.stringify({ type: 'user', message: { role: 'user', content } });
     setTimeout(() => {
       try { ptyProcess.write(inputLine + '\n'); } catch { /* process may have exited */ }
