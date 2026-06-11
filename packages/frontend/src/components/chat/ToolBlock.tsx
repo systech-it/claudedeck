@@ -27,7 +27,7 @@ const SECTION_LABEL_ERROR  = cn(SECTION_LABEL, 'text-red-600 dark:text-red-400/7
 
 function ToolIcon({ name }: { name: string }) {
   const Icon = TOOL_ICONS[name] ?? Terminal;
-  return <Icon className="h-3.5 w-3.5 shrink-0" />;
+  return <Icon className="h-2.5 w-2.5 shrink-0" />;
 }
 
 function formatToolInput(name: string, input: unknown): string {
@@ -61,9 +61,9 @@ export function ToolBlock({ tool }: Props) {
       >
         <StatusIcon status={tool.status} />
         <ToolIcon name={tool.name} />
-        <span className="font-semibold text-foreground">{tool.name}</span>
+        <span className="font-semibold text-[10px] text-foreground">{tool.name}</span>
         {summary && (
-          <span className="truncate text-muted-foreground font-normal">{summary}</span>
+          <span className="truncate text-[10px] text-muted-foreground font-normal">{summary}</span>
         )}
         <span className="ml-auto text-muted-foreground/50">
           {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
@@ -99,7 +99,7 @@ export function ToolBlock({ tool }: Props) {
 }
 
 function StatusIcon({ status }: { status: ToolBlockType['status'] }) {
-  if (status === 'running') return <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-blue-500 dark:text-blue-400" />;
-  if (status === 'success') return <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />;
-  return <XCircle className="h-3.5 w-3.5 shrink-0 text-red-600 dark:text-red-400" />;
+  if (status === 'running') return <Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin text-blue-500 dark:text-blue-400" />;
+  if (status === 'success') return <CheckCircle2 className="h-2.5 w-2.5 shrink-0 text-emerald-600 dark:text-emerald-400" />;
+  return <XCircle className="h-2.5 w-2.5 shrink-0 text-red-600 dark:text-red-400" />;
 }
