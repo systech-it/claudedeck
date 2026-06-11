@@ -8,9 +8,11 @@ import { Message } from './Message';
 import { ChatInput } from './ChatInput';
 import { PermissionDialog } from './PermissionDialog';
 import type { ServerMessage } from '@claudedeck/shared';
-import { Bot, Cpu, Zap } from 'lucide-react';
+import { Bot, Cpu, Zap, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores/settings.store';
+import { useUsage } from '@/hooks/useUsage';
+import { UsageChip } from './UsageChip';
 
 // Map model IDs to short display labels
 const MODEL_LABELS: Record<string, string> = {
@@ -204,12 +206,13 @@ export function ChatView() {
   );
 
   const modelLabel = model ? MODEL_LABELS[model] ?? model : null;
+  const usage = useUsage();
 
   return (
     <div className="flex h-full flex-col">
-      {/* Model/effort status bar — always visible */}
+      {/* Status bar — model/effort + usage */}
       <div className="flex items-center gap-2 border-b border-border bg-muted/20 px-4 py-1.5">
-        <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Chat settings:</span>
+        <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider shrink-0">Chat:</span>
         <span className={cn(
           'flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
           model ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
@@ -224,6 +227,22 @@ export function ChatView() {
           <Zap className="h-2.5 w-2.5" />
           Effort · {effort ?? 'Default'}
         </span>
+
+        {(usage?.fiveHour || usage?.sevenDay) && (
+          <>
+            <span className="text-border mx-1 select-none">|</span>
+            <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider shrink-0 flex items-center gap-1">
+              <Activity className="h-2.5 w-2.5" />
+              Usage:
+            </span>
+            {usage.fiveHour && (
+              <UsageChip label="5h" utilization={usage.fiveHour.utilization} />
+            )}
+            {usage.sevenDay && (
+              <UsageChip label="7d" utilization={usage.sevenDay.utilization} />
+            )}
+          </>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto">
