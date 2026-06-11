@@ -4,7 +4,7 @@ export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   username: text('username').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
-  anthropicApiKey: text('anthropic_api_key').notNull(),
+  anthropicApiKey: text('anthropic_api_key'),
   isAdmin: integer('is_admin', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at').notNull(),
 });

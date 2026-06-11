@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid';
 import { db } from '../db/index.js';
 import { users, type DbUser } from '../db/schema.js';
 import type { RegisterRequest } from '@claudedeck/shared';
+// Note: anthropicApiKey kept in DB schema for optional future per-user key override
 import { mkdirSync } from 'fs';
 import { join } from 'path';
 import { config } from '../config.js';
@@ -24,7 +25,7 @@ export async function createUser(data: RegisterRequest): Promise<DbUser> {
     id,
     username: data.username,
     passwordHash,
-    anthropicApiKey: data.anthropicApiKey,
+    anthropicApiKey: null,
     isAdmin: isFirstUser,
     createdAt: now,
   };
@@ -52,8 +53,3 @@ export function getUserProfileDir(userId: string): string {
   return join(config.dataDir, 'profiles', userId, 'claude');
 }
 
-export function getUserApiKey(userId: string): string {
-  const user = getUserById(userId);
-  if (!user) throw new Error('User not found');
-  return user.anthropicApiKey;
-}

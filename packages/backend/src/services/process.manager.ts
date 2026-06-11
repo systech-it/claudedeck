@@ -3,7 +3,7 @@ import { EventEmitter } from 'events';
 import { mkdirSync } from 'fs';
 import { nanoid } from 'nanoid';
 import { config } from '../config.js';
-import { getUserProfileDir, getUserApiKey } from './auth.service.js';
+import { getUserProfileDir } from './auth.service.js';
 import { getSession, updateSessionMeta, extractTitleFromJsonl } from './session.service.js';
 
 export type ProcessEvent =
@@ -57,8 +57,6 @@ export function spawnClaudeProcess(
 
   const session = getSession(sessionId, userId);
   const cwd = session?.projectPath ?? '/tmp';
-  const apiKey = getUserApiKey(userId);
-
   const args = ['--output-format', 'stream-json', '--verbose'];
   if (isResume) {
     args.push('--resume', sessionId);
@@ -72,7 +70,6 @@ export function spawnClaudeProcess(
     cwd,
     env: {
       ...process.env,
-      ANTHROPIC_API_KEY: apiKey,
       CLAUDE_CONFIG_DIR: profileDir,
       HOME: profileDir,
       TERM: 'xterm-256color',

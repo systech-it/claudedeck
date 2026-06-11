@@ -9,7 +9,6 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { setAuth } = useAuthStore();
@@ -24,7 +23,7 @@ export default function LoginPage() {
       const data =
         mode === 'login'
           ? await api.auth.login({ username, password })
-          : await api.auth.register({ username, password, anthropicApiKey: apiKey });
+          : await api.auth.register({ username, password });
 
       setAuth(data.token, data.user);
       navigate('/');
@@ -87,22 +86,6 @@ export default function LoginPage() {
               />
             </div>
 
-            {mode === 'register' && (
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                  Anthropic API Key
-                </label>
-                <Input
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-ant-..."
-                  required
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Your key is stored encrypted and used only for your sessions.
-                </p>
-              </div>
-            )}
 
             {error && (
               <p className="text-sm text-destructive">{error}</p>
