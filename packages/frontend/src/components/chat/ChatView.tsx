@@ -36,6 +36,7 @@ export function ChatView() {
   const [model, setModel] = useState<string | undefined>(defaultModel);
   const [effort, setEffort] = useState<string | undefined>(defaultEffort);
   const [permissionMode, setPermissionMode] = useState<string>('default');
+  const [remoteControl, setRemoteControl] = useState(false);
 
   const messages = useChatStore((s) => s.messages[activeSessionId] ?? []);
   const isStreaming = useChatStore((s) => s.streamingIds.has(activeSessionId));
@@ -55,20 +56,22 @@ export function ChatView() {
     setStreaming,
   } = useChatStore();
 
-  // Load history from JSONL when navigating to a session with no messages in store
+  // Load/reload history from JSONL each time we navigate to a session
   useEffect(() => {
     if (!activeSessionId || activeSessionId === 'new') return;
-    const existing = useChatStore.getState().messages[activeSessionId];
-    if (existing && existing.length > 0) return;
+    // Don't reload while actively streaming — messages are being built in real-time
+    if (useChatStore.getState().streamingIds.has(activeSessionId)) return;
+    useChatStore.getState().clearMessages(activeSessionId);
     api.sessions.history(activeSessionId).then((msgs) => {
       if (!msgs.length) return;
+      // Guard: if streaming started while we awaited, don't overwrite live messages
+      if (useChatStore.getState().streamingIds.has(activeSessionId)) return;
       msgs.forEach((m) =>
         useChatStore.getState().addMessage(activeSessionId, {
           id: newMsgId(),
           role: m.role,
           content: m.content,
           thinking: m.thinking,
-          // Convert HistoryToolCall[] → ToolBlock[] for display
           tools: m.tools?.map((t) => ({
             id: t.id,
             name: t.name as import('@claudedeck/shared').ToolName,
@@ -190,9 +193,10 @@ export function ChatView() {
         effort,
         permissionMode: permissionMode !== 'default' ? permissionMode : undefined,
         attachments: attachments.length > 0 ? attachments.map(({ name, mimeType, data }) => ({ name, mimeType, data })) : undefined,
+        remoteControl: remoteControl || undefined,
       });
     },
-    [activeSessionId, addMessage, model, effort, permissionMode]
+    [activeSessionId, addMessage, model, effort, permissionMode, remoteControl]
   );
 
   const handleStop = useCallback(() => {
@@ -285,9 +289,11 @@ export function ChatView() {
         model={model}
         effort={effort}
         permissionMode={permissionMode}
+        remoteControl={remoteControl}
         onModelChange={setModel}
         onEffortChange={setEffort}
         onPermissionModeChange={setPermissionMode}
+        onRemoteControlChange={setRemoteControl}
       />
     </div>
   );

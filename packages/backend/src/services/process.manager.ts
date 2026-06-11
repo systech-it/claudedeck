@@ -49,7 +49,7 @@ export function spawnClaudeProcess(
   userId: string,
   message: string,
   claudeSessionId: string | null,
-  opts: { model?: string; effort?: string; permissionMode?: string; usesServerClaudeDir?: boolean; attachments?: Array<{ name: string; mimeType: string; data: string }> } = {}
+  opts: { model?: string; effort?: string; permissionMode?: string; remoteControl?: boolean; usesServerClaudeDir?: boolean; attachments?: Array<{ name: string; mimeType: string; data: string }> } = {}
 ): EventEmitter {
   const existing = activeProcesses.get(sessionId);
   if (existing) {
@@ -83,6 +83,7 @@ export function spawnClaudeProcess(
   if (opts.model) args.push('--model', opts.model);
   if (opts.effort) args.push('--effort', opts.effort);
   if (opts.permissionMode) args.push('--permission-mode', opts.permissionMode);
+  if (opts.remoteControl) args.push('--dangerously-skip-permissions');
   if (hasAttachments) {
     args.push('--input-format', 'stream-json', '--print');
   } else {

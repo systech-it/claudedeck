@@ -4,7 +4,7 @@ import type { ToolName } from './tool.js';
 // ─── Client → Server ──────────────────────────────────────
 
 export type ClientMessage =
-  | { type: 'send_message'; sessionId: string; content: string; model?: string; effort?: string; permissionMode?: string; attachments?: Array<{ name: string; mimeType: string; data: string }> }
+  | { type: 'send_message'; sessionId: string; content: string; model?: string; effort?: string; permissionMode?: string; remoteControl?: boolean; attachments?: Array<{ name: string; mimeType: string; data: string }> }
   | { type: 'permission_response'; sessionId: string; requestId: string; allow: boolean }
   | { type: 'stop'; sessionId: string }
   | { type: 'ping' };

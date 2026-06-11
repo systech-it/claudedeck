@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Square, ChevronUp, Cpu, Zap, Check, ShieldCheck, Paperclip, X } from 'lucide-react';
+import { Send, Square, ChevronUp, Cpu, Zap, Check, ShieldCheck, Paperclip, X, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -96,15 +96,17 @@ interface Props {
   model: string | undefined;
   effort: string | undefined;
   permissionMode: string;
+  remoteControl: boolean;
   onModelChange: (m: string | undefined) => void;
   onEffortChange: (e: string | undefined) => void;
   onPermissionModeChange: (m: string) => void;
+  onRemoteControlChange: (v: boolean) => void;
 }
 
 export function ChatInput({
   onSend, onStop, isStreaming, disabled,
-  model, effort, permissionMode,
-  onModelChange, onEffortChange, onPermissionModeChange,
+  model, effort, permissionMode, remoteControl,
+  onModelChange, onEffortChange, onPermissionModeChange, onRemoteControlChange,
 }: Props) {
   const [value, setValue] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -337,6 +339,26 @@ export function ChatInput({
               <span>Mode · {activeMode.label}</span>
               <ChevronUp className={cn('h-3 w-3 opacity-60 transition-transform', showModes && 'rotate-180')} />
             </button>
+
+            <button
+              onClick={() => onRemoteControlChange(!remoteControl)}
+              title={remoteControl ? 'Remote Control ON — bypasses all permission prompts' : 'Remote Control OFF — click to enable (dangerous)'}
+              className={cn(
+                'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors border',
+                remoteControl
+                  ? 'border-red-500/60 bg-red-500/15 text-red-600 dark:text-red-400'
+                  : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground'
+              )}
+            >
+              <Radio className="h-3 w-3" />
+              <span>Remote Control</span>
+              <span className={cn(
+                'ml-0.5 rounded-full px-1 py-0 text-[9px] font-bold tracking-wider',
+                remoteControl ? 'bg-red-500/20 text-red-600 dark:text-red-400' : 'bg-muted text-muted-foreground'
+              )}>
+                {remoteControl ? 'ON' : 'OFF'}
+              </span>
+            </button>
           </div>
 
           {/* Attachment previews */}
@@ -367,11 +389,7 @@ export function ChatInput({
           )}
 
           {/* Input row */}
-          <div
-            className="flex items-end gap-2 rounded-xl border border-input bg-input focus-within:border-ring focus-within:ring-1 focus-within:ring-ring transition-shadow"
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-          >
+          <div className="flex items-stretch gap-2">
             <input
               ref={fileInputRef}
               type="file"
@@ -382,38 +400,45 @@ export function ChatInput({
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="ml-3 shrink-0 self-end mb-3 text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center justify-center w-10 shrink-0 rounded-xl border border-input bg-input text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               title="Attach file"
               type="button"
             >
               <Paperclip className="h-4 w-4" />
             </button>
-            <textarea
-              ref={textareaRef}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              placeholder="Message Claude Code… (Enter to send, Shift+Enter for newline)"
-              disabled={isStreaming || disabled}
-              rows={1}
-              className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent px-2 py-3 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
-            />
-            <div className="p-2">
-              {isStreaming ? (
-                <Button size="icon" variant="destructive" onClick={onStop} title="Stop generation">
-                  <Square className="h-4 w-4" />
-                </Button>
-              ) : (
-                <Button
-                  size="icon"
-                  onClick={handleSend}
-                  disabled={(!value.trim() && attachments.length === 0) || disabled}
-                  title="Send message"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              )}
+
+            <div
+              className="flex flex-1 items-end gap-2 rounded-xl border border-input bg-input focus-within:border-ring focus-within:ring-1 focus-within:ring-ring transition-shadow"
+              onDrop={handleDrop}
+              onDragOver={(e) => e.preventDefault()}
+            >
+              <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                placeholder="Message Claude Code… (Enter to send, Shift+Enter for newline)"
+                disabled={isStreaming || disabled}
+                rows={1}
+                className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent px-3 py-3 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
+              />
+              <div className="p-2">
+                {isStreaming ? (
+                  <Button size="icon" variant="destructive" onClick={onStop} title="Stop generation">
+                    <Square className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="icon"
+                    onClick={handleSend}
+                    disabled={(!value.trim() && attachments.length === 0) || disabled}
+                    title="Send message"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
