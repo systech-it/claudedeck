@@ -82,8 +82,9 @@ export function spawnClaudeProcess(
   if (claudeSessionId) args.push('--resume', claudeSessionId);
   if (opts.model) args.push('--model', opts.model);
   if (opts.effort) args.push('--effort', opts.effort);
-  if (opts.permissionMode) args.push('--permission-mode', opts.permissionMode);
-  if (opts.remoteControl) args.push('--dangerously-skip-permissions');
+  // permissionMode z UI, ale Remote Control nadpisuje na 'auto' (--dangerously-skip-permissions jest zablokowane na root)
+  const effectivePermissionMode = opts.remoteControl ? 'auto' : opts.permissionMode;
+  if (effectivePermissionMode) args.push('--permission-mode', effectivePermissionMode);
   if (hasAttachments) {
     args.push('--input-format', 'stream-json', '--print');
   } else {
