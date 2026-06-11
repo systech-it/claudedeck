@@ -49,7 +49,7 @@ export function spawnClaudeProcess(
   userId: string,
   message: string,
   claudeSessionId: string | null,
-  opts: { model?: string; effort?: string; permissionMode?: string; usesServerClaudeDir?: boolean } = {}
+  opts: { model?: string; effort?: string; permissionMode?: string; usesServerClaudeDir?: boolean; attachments?: Array<{ name: string; mimeType: string; data: string }> } = {}
 ): EventEmitter {
   const existing = activeProcesses.get(sessionId);
   if (existing) {
@@ -77,12 +77,17 @@ export function spawnClaudeProcess(
     ? session.projectPath
     : (session?.projectPath ?? '/tmp');
 
+  const hasAttachments = opts.attachments && opts.attachments.length > 0;
   const args = ['--output-format', 'stream-json', '--verbose'];
   if (claudeSessionId) args.push('--resume', claudeSessionId);
   if (opts.model) args.push('--model', opts.model);
   if (opts.effort) args.push('--effort', opts.effort);
   if (opts.permissionMode) args.push('--permission-mode', opts.permissionMode);
-  args.push('-p', message);
+  if (hasAttachments) {
+    args.push('--input-format', 'stream-json', '--print');
+  } else {
+    args.push('-p', message);
+  }
 
   const ptyProcess = pty.spawn(config.claudeBin, args, {
     name: 'xterm-256color',
@@ -109,6 +114,22 @@ export function spawnClaudeProcess(
   };
 
   activeProcesses.set(sessionId, proc);
+
+  // For messages with attachments, send structured JSON to stdin
+  if (hasAttachments) {
+    const content: unknown[] = [{ type: 'text', text: message }];
+    for (const att of opts.attachments!) {
+      if (att.mimeType.startsWith('image/')) {
+        content.push({ type: 'image', source: { type: 'base64', media_type: att.mimeType, data: att.data } });
+      } else {
+        content.push({ type: 'text', text: `\n[Attached file: ${att.name}]\n` });
+      }
+    }
+    const inputLine = JSON.stringify({ type: 'user', message: { role: 'user', content } });
+    setTimeout(() => {
+      try { ptyProcess.write(inputLine + '\n'); } catch { /* process may have exited */ }
+    }, 300);
+  }
 
   ptyProcess.onData((data: string) => {
     proc.buffer += data;

@@ -1,7 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
-import { Send, Square, ChevronUp, Cpu, Zap, Check, ShieldCheck } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Send, Square, ChevronUp, Cpu, Zap, Check, ShieldCheck, Paperclip, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+export interface Attachment {
+  name: string;
+  mimeType: string;
+  data: string;       // base64 (no prefix)
+  preview?: string;   // data URL for image preview
+}
 
 interface ModelOption {
   id: string | undefined;
@@ -59,8 +66,30 @@ function getEffortsForModel(modelId: string | undefined): EffortOption[] {
   return EFFORTS.filter((e) => allowed.includes(e.id));
 }
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
+async function fileToAttachment(file: File): Promise<Attachment | null> {
+  if (file.size > MAX_FILE_SIZE) return null;
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const [prefix, data] = dataUrl.split(',');
+      const mimeType = prefix.replace('data:', '').replace(';base64', '');
+      resolve({
+        name: file.name,
+        mimeType,
+        data,
+        preview: mimeType.startsWith('image/') ? dataUrl : undefined,
+      });
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
 interface Props {
-  onSend: (content: string) => void;
+  onSend: (content: string, attachments: Attachment[]) => void;
   onStop: () => void;
   isStreaming: boolean;
   disabled?: boolean;
@@ -78,10 +107,33 @@ export function ChatInput({
   onModelChange, onEffortChange, onPermissionModeChange,
 }: Props) {
   const [value, setValue] = useState('');
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showModels, setShowModels] = useState(false);
   const [showEfforts, setShowEfforts] = useState(false);
   const [showModes, setShowModes] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const addFiles = useCallback(async (files: FileList | File[]) => {
+    const arr = Array.from(files);
+    const results = await Promise.all(arr.map(fileToAttachment));
+    setAttachments((prev) => [...prev, ...results.filter(Boolean) as Attachment[]]);
+  }, []);
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imageItems = Array.from(items).filter((i) => i.kind === 'file' && i.type.startsWith('image/'));
+    if (imageItems.length === 0) return;
+    e.preventDefault();
+    const files = imageItems.map((i) => i.getAsFile()).filter(Boolean) as File[];
+    addFiles(files);
+  }, [addFiles]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  }, [addFiles]);
 
   const availableEfforts = getEffortsForModel(model);
   const effortSupported = availableEfforts.length > 1;
@@ -109,9 +161,10 @@ export function ChatInput({
 
   function handleSend() {
     const trimmed = value.trim();
-    if (!trimmed || isStreaming || disabled) return;
-    onSend(trimmed);
+    if ((!trimmed && attachments.length === 0) || isStreaming || disabled) return;
+    onSend(trimmed || ' ', attachments);
     setValue('');
+    setAttachments([]);
   }
 
   const activeModel = MODELS.find((m) => m.id === model) ?? MODELS[0];
@@ -286,17 +339,65 @@ export function ChatInput({
             </button>
           </div>
 
+          {/* Attachment previews */}
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-1">
+              {attachments.map((att, i) => (
+                <div key={i} className="relative group/att">
+                  {att.preview ? (
+                    <img
+                      src={att.preview}
+                      alt={att.name}
+                      className="h-14 w-14 rounded-lg object-cover border border-border"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-border bg-muted text-[10px] text-muted-foreground text-center px-1 overflow-hidden">
+                      {att.name}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                    className="absolute -top-1.5 -right-1.5 hidden group-hover/att:flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white"
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Input row */}
-          <div className="flex items-end gap-2 rounded-xl border border-input bg-input focus-within:border-ring focus-within:ring-1 focus-within:ring-ring transition-shadow">
+          <div
+            className="flex items-end gap-2 rounded-xl border border-input bg-input focus-within:border-ring focus-within:ring-1 focus-within:ring-ring transition-shadow"
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,.pdf,.txt,.md,.json,.csv,.js,.ts,.py"
+              className="hidden"
+              onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="ml-3 shrink-0 self-end mb-3 text-muted-foreground hover:text-foreground transition-colors"
+              title="Attach file"
+              type="button"
+            >
+              <Paperclip className="h-4 w-4" />
+            </button>
             <textarea
               ref={textareaRef}
               value={value}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               placeholder="Message Claude Code… (Enter to send, Shift+Enter for newline)"
               disabled={isStreaming || disabled}
               rows={1}
-              className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
+              className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent px-2 py-3 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
             />
             <div className="p-2">
               {isStreaming ? (
@@ -307,7 +408,7 @@ export function ChatInput({
                 <Button
                   size="icon"
                   onClick={handleSend}
-                  disabled={!value.trim() || disabled}
+                  disabled={(!value.trim() && attachments.length === 0) || disabled}
                   title="Send message"
                 >
                   <Send className="h-4 w-4" />

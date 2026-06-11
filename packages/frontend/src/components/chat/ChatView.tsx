@@ -180,9 +180,17 @@ export function ChatView() {
   }, [messages.length, isStreaming]);
 
   const handleSend = useCallback(
-    (content: string) => {
+    (content: string, attachments: import('./ChatInput').Attachment[]) => {
       addMessage(activeSessionId, { id: newMsgId(), role: 'user', content });
-      wsClient.send({ type: 'send_message', sessionId: activeSessionId, content, model, effort, permissionMode: permissionMode !== 'default' ? permissionMode : undefined });
+      wsClient.send({
+        type: 'send_message',
+        sessionId: activeSessionId,
+        content,
+        model,
+        effort,
+        permissionMode: permissionMode !== 'default' ? permissionMode : undefined,
+        attachments: attachments.length > 0 ? attachments.map(({ name, mimeType, data }) => ({ name, mimeType, data })) : undefined,
+      });
     },
     [activeSessionId, addMessage, model, effort, permissionMode]
   );
