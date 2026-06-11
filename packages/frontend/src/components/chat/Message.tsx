@@ -64,11 +64,11 @@ export function Message({ message }: Props) {
 
         {/* ── WORKFLOW PANEL (thinking + tools) — clearly not a chat bubble ── */}
         {!isUser && (hasThinking || hasTools) && (
-          <div className="w-full rounded-lg overflow-hidden border border-border/60 bg-muted/20">
+          <div className="w-full rounded-lg overflow-hidden border border-border bg-muted/30 dark:bg-muted/20">
             {/* Panel header */}
-            <div className="flex items-center gap-1.5 border-b border-border/40 bg-muted/40 px-2.5 py-1">
-              <Wrench className="h-3 w-3 text-muted-foreground/60" />
-              <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/60">
+            <div className="flex items-center gap-1.5 border-b border-border bg-muted/60 dark:bg-muted/40 px-2.5 py-1">
+              <Wrench className="h-3 w-3 text-muted-foreground" />
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Work
               </span>
             </div>

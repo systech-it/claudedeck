@@ -15,11 +15,15 @@ const TOOL_ICONS: Record<string, React.ElementType> = {
   WebSearch: Globe,
 };
 
-const STATUS_COLORS = {
-  running: 'border-l-blue-400/60 bg-blue-500/5',
-  success: 'border-l-emerald-400/60 bg-emerald-500/5',
-  error:   'border-l-red-400/60   bg-red-500/5',
+const STATUS_STYLES = {
+  running: 'border-l-blue-400    bg-blue-50    dark:bg-blue-500/5',
+  success: 'border-l-emerald-400 bg-emerald-50 dark:bg-emerald-500/5',
+  error:   'border-l-red-400     bg-red-50     dark:bg-red-500/5',
 };
+
+const SECTION_LABEL = 'text-[10px] uppercase tracking-wider font-semibold mb-1';
+const SECTION_LABEL_NORMAL = cn(SECTION_LABEL, 'text-muted-foreground/70');
+const SECTION_LABEL_ERROR  = cn(SECTION_LABEL, 'text-red-600 dark:text-red-400/70');
 
 function ToolIcon({ name }: { name: string }) {
   const Icon = TOOL_ICONS[name] ?? Terminal;
@@ -47,17 +51,17 @@ interface Props {
 export function ToolBlock({ tool }: Props) {
   const [open, setOpen] = useState(false);
   const summary = formatToolInput(tool.name, tool.input);
-  const statusColor = STATUS_COLORS[tool.status] ?? STATUS_COLORS.running;
+  const statusStyle = STATUS_STYLES[tool.status] ?? STATUS_STYLES.running;
 
   return (
-    <div className={cn('mb-1.5 overflow-hidden rounded-lg border-l-2 text-xs font-mono', statusColor)}>
+    <div className={cn('mb-1.5 overflow-hidden rounded-lg border-l-2 text-xs font-mono', statusStyle)}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-white/5 transition-colors"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
       >
         <StatusIcon status={tool.status} />
         <ToolIcon name={tool.name} />
-        <span className="font-semibold text-foreground/90">{tool.name}</span>
+        <span className="font-semibold text-foreground">{tool.name}</span>
         {summary && (
           <span className="truncate text-muted-foreground font-normal">{summary}</span>
         )}
@@ -67,11 +71,11 @@ export function ToolBlock({ tool }: Props) {
       </button>
 
       {open && (
-        <div className="border-t border-white/5 px-3 py-2.5 space-y-2">
+        <div className="border-t border-black/5 dark:border-white/5 px-3 py-2.5 space-y-2">
           {Boolean(tool.input) && (
             <div>
-              <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground/60">Input</div>
-              <pre className="overflow-x-auto whitespace-pre-wrap break-words text-foreground/80 text-[11px]">
+              <div className={SECTION_LABEL_NORMAL}>Input</div>
+              <pre className="overflow-x-auto whitespace-pre-wrap break-words text-foreground text-[11px]">
                 {typeof tool.input === 'object'
                   ? JSON.stringify(tool.input as Record<string, unknown>, null, 2)
                   : String(tool.input as string)}
@@ -80,13 +84,10 @@ export function ToolBlock({ tool }: Props) {
           )}
           {tool.output && (
             <div>
-              <div className={cn(
-                'mb-1 text-[10px] uppercase tracking-wider',
-                tool.status === 'error' ? 'text-red-400/70' : 'text-muted-foreground/60'
-              )}>
+              <div className={tool.status === 'error' ? SECTION_LABEL_ERROR : SECTION_LABEL_NORMAL}>
                 Output
               </div>
-              <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words text-foreground/80 text-[11px]">
+              <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words text-foreground text-[11px]">
                 {tool.output}
               </pre>
             </div>
@@ -98,7 +99,7 @@ export function ToolBlock({ tool }: Props) {
 }
 
 function StatusIcon({ status }: { status: ToolBlockType['status'] }) {
-  if (status === 'running') return <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-blue-400" />;
-  if (status === 'success') return <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />;
-  return <XCircle className="h-3.5 w-3.5 shrink-0 text-red-400" />;
+  if (status === 'running') return <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-blue-500 dark:text-blue-400" />;
+  if (status === 'success') return <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />;
+  return <XCircle className="h-3.5 w-3.5 shrink-0 text-red-600 dark:text-red-400" />;
 }
