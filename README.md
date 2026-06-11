@@ -2,9 +2,19 @@
 
 **Self-hosted web UI for Claude Code CLI**
 
-ClaudeDeck is an open-source web interface that lets you interact with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) through a browser. Install it once, connect your own Anthropic API key, and get a full-featured chat interface with real-time streaming, tool use display, and session management — all running on your own infrastructure.
+ClaudeDeck is an open-source web interface that lets you interact with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) through a browser. Install it on any machine that already has Claude Code, open the UI, and get a full-featured chat interface with real-time streaming, tool blocks, permission dialogs, and session management — no API key required from users.
 
 > Created by **SysTech Łukasz Grzywacki** — [github.com/systech-it/claudedeck](https://github.com/systech-it/claudedeck)
+
+---
+
+## How it works
+
+ClaudeDeck runs on the **same machine as Claude Code CLI**. It spawns `claude` as a subprocess on your behalf and streams the output to the browser over WebSocket. Authentication (API key or Claude Pro/Max subscription) is handled by Claude Code itself — ClaudeDeck does not need to know about it.
+
+```
+Browser  ──WebSocket──►  ClaudeDeck  ──subprocess──►  claude CLI
+```
 
 ---
 
@@ -12,33 +22,57 @@ ClaudeDeck is an open-source web interface that lets you interact with [Claude C
 
 - **Real-time streaming** — responses stream token by token via WebSocket
 - **Tool use blocks** — collapsible panels showing Bash, Read, Write, Edit and other tool calls with inputs and outputs
-- **Thinking blocks** — Claude's reasoning displayed in collapsed blocks
-- **Permission dialogs** — approve or deny tool execution from the browser
+- **Thinking blocks** — Claude's internal reasoning displayed in collapsed blocks
+- **Permission dialogs** — approve or deny tool execution directly from the browser
 - **Session management** — list, resume, rename, and delete sessions
-- **Multi-user** — each user has their own isolated profile and API key
+- **Multi-user** — each user has their own isolated session history and account
 - **Update notifications** — banner appears when a new version is available on GitHub
 - **Dark mode** — default dark theme
 
+---
+
 ## Requirements
 
-- Docker (for the containerized deployment)
-- Claude Code CLI installed on the host (`claude` binary)
-- Anthropic API key (one per user, entered at registration)
+- **Claude Code CLI** installed and configured on the host (`claude --version` must work)
+- **Node.js >= 20** + npm >= 10 (for bare deployment)
+- Or **Docker + Docker Compose v2** (for containerized deployment)
+
+> **No Anthropic API key needed at registration.** ClaudeDeck uses whatever authentication
+> Claude Code already has on the server — subscription credentials or a server-level
+> `ANTHROPIC_API_KEY` set once in `.env`.
+
+---
 
 ## Quick Start
 
+### Without Docker (simplest)
+
 ```bash
-# 1. Create your .env file
+git clone https://github.com/systech-it/claudedeck.git
+cd claudedeck
+npm install
+
 cp .env.example .env
-# Edit .env and set JWT_SECRET to a random string
+# Edit .env — set JWT_SECRET and CLAUDE_BIN at minimum
 
-# 2. Start
-docker compose up -d
-
-# 3. Open http://localhost:3000 and register your account
+npm run build
+node packages/backend/dist/index.js
 ```
 
-The first registered user is automatically granted admin rights.
+Open http://localhost:3000, register your account, start chatting.
+
+### With Docker
+
+```bash
+cp .env.example .env
+# Edit .env — set JWT_SECRET
+
+docker compose up -d
+```
+
+Open http://localhost:3000.
+
+---
 
 ## Configuration
 
@@ -46,34 +80,38 @@ All configuration is done via environment variables. See [`.env.example`](.env.e
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `JWT_SECRET` | **yes** | — | Secret key for JWT signing (use `openssl rand -hex 32`) |
+| `JWT_SECRET` | **yes** | — | Secret key for JWT signing — use `openssl rand -hex 32` |
+| `CLAUDE_BIN` | no | `claude` | Path to the `claude` CLI binary |
 | `PORT` | no | `3000` | HTTP port to listen on |
-| `DATA_DIR` | no | `/app/data` | Path to persistent data directory |
-| `CLAUDE_BIN` | no | `/usr/local/bin/claude` | Path to the `claude` CLI binary |
+| `DATA_DIR` | no | `./data` | Directory for SQLite database and user session profiles |
+| `ANTHROPIC_API_KEY` | no | — | Set once here if using API key auth (not needed for subscription users) |
 | `GITHUB_TOKEN` | no | — | GitHub token for higher update-check rate limits |
 | `CORS_ORIGINS` | no | — | Comma-separated list of allowed CORS origins |
+
+---
 
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full development guide.
 
 ```bash
-# Install dependencies
 npm install
-
-# Start backend (hot-reload) + frontend (Vite HMR)
-npm run dev
+cp .env.example .env   # fill in JWT_SECRET and CLAUDE_BIN
+npm run build          # build shared + backend + frontend
+npm run dev            # start backend (tsx watch) + frontend (Vite HMR)
 ```
 
-Or with Docker:
-
-```bash
-docker compose -f docker-compose.dev.yml up
-```
+---
 
 ## Deployment
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions including reverse proxy configuration, HTTPS setup, and update procedures.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions covering:
+- Bare Node.js + systemd service
+- Docker Compose
+- Reverse proxy (Caddy / Nginx) with HTTPS
+- Updates and backups
+
+---
 
 ## Project Structure
 
@@ -81,13 +119,15 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions includin
 claudedeck/
 ├── packages/
 │   ├── shared/     TypeScript types shared between frontend and backend
-│   ├── backend/    Fastify API server + WebSocket + node-pty process manager
-│   └── frontend/   React SPA with Vite
+│   ├── backend/    Fastify server · WebSocket · node-pty · SQLite/Drizzle
+│   └── frontend/   React + Vite SPA
 ├── docker/         Dockerfiles
-├── .github/        GitHub Actions workflows
+├── .github/        GitHub Actions (CI + release pipeline)
 ├── CONTRIBUTING.md
 └── DEPLOYMENT.md
 ```
+
+---
 
 ## License
 

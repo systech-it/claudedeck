@@ -134,9 +134,11 @@ After starting, ClaudeDeck listens on `PORT` (default: **3000**).
 | With reverse proxy | https://claudedeck.yourdomain.com |
 
 The first time you open the UI you will see the **login page**.
-Register your account — the first registered user is automatically made **admin**.
-Enter your **Anthropic API key** during registration; it is stored encrypted in the local database
-and used exclusively for your own Claude Code sessions.
+Switch to the **Register** tab, enter a username and password — that's all.
+The first registered user is automatically made **admin**.
+
+No API key is needed at registration. ClaudeDeck uses Claude Code's own authentication
+(subscription credentials stored by `claude` on the server, or `ANTHROPIC_API_KEY` from `.env`).
 
 ---
 
