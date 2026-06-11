@@ -1,7 +1,9 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useChatStore, newMsgId } from '@/stores/chat.store';
+import { useSessionStore } from '@/stores/session.store';
 import { wsClient } from '@/api/ws';
+import { api } from '@/api/http';
 import { Message } from './Message';
 import { ChatInput } from './ChatInput';
 import { PermissionDialog } from './PermissionDialog';
@@ -11,18 +13,24 @@ import { Bot } from 'lucide-react';
 export function ChatView() {
   const { sessionId } = useParams<{ sessionId?: string }>();
   const activeSessionId = sessionId ?? 'new';
+  const navigate = useNavigate();
   const bottomRef = useRef<HTMLDivElement>(null);
   const currentMsgIdRef = useRef<string | null>(null);
+  // Keep a ref so the stable WS listener always has the latest activeSessionId
+  const activeSessionIdRef = useRef(activeSessionId);
+  activeSessionIdRef.current = activeSessionId;
 
   const messages = useChatStore((s) => s.messages[activeSessionId] ?? []);
   const isStreaming = useChatStore((s) => s.streamingIds.has(activeSessionId));
   const permission = useChatStore((s) => s.pendingPermissions[activeSessionId] ?? null);
   const wsConnected = useChatStore((s) => s.wsConnected);
+  const setSessions = useSessionStore((s) => s.setSessions);
 
   const {
     addMessage,
     appendText,
     appendThinking,
+    setThinkingTokens,
     addToolStart,
     updateToolEnd,
     finalizeMessage,
@@ -32,22 +40,40 @@ export function ChatView() {
 
   useEffect(() => {
     const unsub = wsClient.onMessage((msg: ServerMessage) => {
-      const sid = 'sessionId' in msg ? (msg as { sessionId: string }).sessionId : activeSessionId;
+      const sid = 'sessionId' in msg ? (msg as { sessionId: string }).sessionId : activeSessionIdRef.current;
 
       switch (msg.type) {
         case 'session_ready': {
           const id = newMsgId();
           currentMsgIdRef.current = id;
+
+          const currentActiveId = activeSessionIdRef.current;
+          if (sid !== currentActiveId) {
+            // Backend created a new session — move any locally-added user messages to it
+            const pending = useChatStore.getState().messages[currentActiveId] ?? [];
+            pending.forEach((pm) => useChatStore.getState().addMessage(sid, pm));
+            // Navigate to the real session and refresh sidebar
+            navigate(`/session/${sid}`);
+            api.sessions.list().then(setSessions).catch(console.error);
+          }
+
           addMessage(sid, { id, role: 'assistant', content: '', isStreaming: true });
           setStreaming(sid, true);
           break;
         }
+
         case 'text_delta':
           if (currentMsgIdRef.current) appendText(sid, currentMsgIdRef.current, msg.text);
           break;
+
+        case 'thinking_progress':
+          if (currentMsgIdRef.current) setThinkingTokens(sid, currentMsgIdRef.current, msg.tokens);
+          break;
+
         case 'thinking_delta':
           if (currentMsgIdRef.current) appendThinking(sid, currentMsgIdRef.current, msg.text);
           break;
+
         case 'tool_start':
           if (currentMsgIdRef.current) {
             addToolStart(sid, currentMsgIdRef.current, {
@@ -58,11 +84,13 @@ export function ChatView() {
             });
           }
           break;
+
         case 'tool_end':
           if (currentMsgIdRef.current) {
             updateToolEnd(sid, currentMsgIdRef.current, msg.toolId, msg.output, msg.isError);
           }
           break;
+
         case 'permission_request':
           setPermission(sid, {
             requestId: msg.requestId,
@@ -71,6 +99,7 @@ export function ChatView() {
             description: msg.description,
           });
           break;
+
         case 'message_complete':
           if (currentMsgIdRef.current) {
             finalizeMessage(sid, currentMsgIdRef.current, {
@@ -81,7 +110,10 @@ export function ChatView() {
             currentMsgIdRef.current = null;
           }
           setStreaming(sid, false);
+          // Refresh sidebar so the session title/count updates
+          api.sessions.list().then(setSessions).catch(console.error);
           break;
+
         case 'error':
           setStreaming(sid, false);
           if (currentMsgIdRef.current) {
@@ -98,16 +130,18 @@ export function ChatView() {
     });
 
     return unsub;
-  }, [activeSessionId, addMessage, appendText, appendThinking, addToolStart, updateToolEnd, finalizeMessage, setPermission, setStreaming]);
+    // navigate, setSessions, and store actions are all stable references
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, isStreaming]);
 
   const handleSend = useCallback(
-    (content: string) => {
+    (content: string, model?: string, effort?: string) => {
       addMessage(activeSessionId, { id: newMsgId(), role: 'user', content });
-      wsClient.send({ type: 'send_message', sessionId: activeSessionId, content });
+      wsClient.send({ type: 'send_message', sessionId: activeSessionId, content, model, effort });
     },
     [activeSessionId, addMessage]
   );

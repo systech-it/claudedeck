@@ -1,7 +1,7 @@
 import { eq, desc, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
-import { readFileSync, existsSync, readdirSync, unlinkSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, existsSync, readdirSync, unlinkSync, statSync } from 'fs';
+import { join, basename } from 'path';
 import { db } from '../db/index.js';
 import { sessions, type DbSession } from '../db/schema.js';
 import type { SessionSummary, JsonlMessage } from '@claudedeck/shared';
@@ -36,6 +36,8 @@ export function createSession(userId: string, projectPath: string): DbSession {
     userId,
     title: 'New session',
     projectPath,
+    claudeSessionId: null,
+    usesServerClaudeDir: false,
     createdAt: now,
     updatedAt: now,
     messageCount: 0,
@@ -67,7 +69,7 @@ export function deleteSession(sessionId: string, userId: string): void {
 export function updateSessionMeta(
   sessionId: string,
   userId: string,
-  patch: Partial<Pick<DbSession, 'title' | 'messageCount' | 'totalCostUsd' | 'updatedAt'>>
+  patch: Partial<Pick<DbSession, 'title' | 'messageCount' | 'totalCostUsd' | 'updatedAt' | 'claudeSessionId'>>
 ): void {
   db.update(sessions)
     .set({ ...patch, updatedAt: patch.updatedAt ?? Date.now() })
@@ -156,4 +158,91 @@ function dbSessionToSummary(row: DbSession): SessionSummary {
     isActive: false,
     messageCount: row.messageCount,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Server-side session sync — imports existing Claude Code sessions from the
+// server's own ~/.claude/projects/ directory into the ClaudeDeck database so
+// they appear in the sidebar and can be continued.
+// ---------------------------------------------------------------------------
+
+const SERVER_CLAUDE_DIR = join(process.env.HOME ?? '/root', '.claude');
+
+function extractFirstUserMessage(filePath: string): string | null {
+  try {
+    const lines = readFileSync(filePath, 'utf-8').split('\n').filter(Boolean);
+    for (const line of lines) {
+      try {
+        const m = JSON.parse(line);
+        // ai-title takes priority
+        if (m.type === 'ai-title' && m.aiTitle) return String(m.aiTitle);
+        const msg = m.message ?? {};
+        if (msg.role === 'user') {
+          const c = msg.content;
+          const text = typeof c === 'string' ? c : (Array.isArray(c) ? (c[0]?.text ?? '') : '');
+          if (text.trim()) return text.trim();
+        }
+      } catch { /* skip malformed line */ }
+    }
+  } catch { /* unreadable file */ }
+  return null;
+}
+
+export function syncServerSessions(userId: string): void {
+  const projectsDir = join(SERVER_CLAUDE_DIR, 'projects');
+  if (!existsSync(projectsDir)) return;
+
+  // Collect all top-level (non-subagent) session JSONL files
+  const projectDirs = readdirSync(projectsDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => join(projectsDir, d.name));
+
+  for (const pdir of projectDirs) {
+    // Derive the original project path from the directory name
+    // e.g. "-root-claudedeck" → "/root/claudedeck"
+    const projectPath = ('/' + basename(pdir).replace(/^-/, '').replace(/-/g, '/')).replace('//', '/');
+
+    let files: string[];
+    try {
+      files = readdirSync(pdir).filter((f) => f.endsWith('.jsonl'));
+    } catch { continue; }
+
+    for (const file of files) {
+      const claudeSessionId = file.replace('.jsonl', '');
+      // Skip subagent files (they sit inside a subdir named after the parent session)
+      if (!claudeSessionId.match(/^[0-9a-f-]{36}$/)) continue;
+
+      const filePath = join(pdir, file);
+
+      // Check if already imported
+      const existing = db
+        .select({ id: sessions.id })
+        .from(sessions)
+        .where(and(eq(sessions.claudeSessionId, claudeSessionId), eq(sessions.userId, userId)))
+        .get();
+      if (existing) continue;
+
+      const rawTitle = extractFirstUserMessage(filePath);
+      const title = (rawTitle ?? 'Session').slice(0, SESSION_TITLE_MAX_LENGTH);
+
+      let stat: ReturnType<typeof statSync>;
+      try { stat = statSync(filePath); } catch { continue; }
+
+      db.insert(sessions)
+        .values({
+          id: nanoid(21),
+          userId,
+          title,
+          projectPath,
+          claudeSessionId,
+          usesServerClaudeDir: true,
+          createdAt: Math.floor(stat.birthtimeMs),
+          updatedAt: Math.floor(stat.mtimeMs),
+          messageCount: 0,
+          totalCostUsd: 0,
+        })
+        .onConflictDoNothing()
+        .run();
+    }
+  }
 }

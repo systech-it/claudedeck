@@ -6,6 +6,7 @@ import {
   createSession,
   renameSession,
   deleteSession,
+  syncServerSessions,
 } from '../services/session.service.js';
 
 const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
@@ -13,6 +14,8 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/api/sessions', auth, async (request, reply) => {
     const { userId } = request.user;
+    // Sync local Claude Code sessions in the background (non-blocking)
+    setImmediate(() => { try { syncServerSessions(userId); } catch { /* ignore */ } });
     return reply.send(listUserSessions(userId));
   });
 

@@ -1,6 +1,7 @@
 import * as pty from 'node-pty';
 import { EventEmitter } from 'events';
-import { mkdirSync } from 'fs';
+import { mkdirSync, existsSync, symlinkSync } from 'fs';
+import { join } from 'path';
 import { nanoid } from 'nanoid';
 import { config } from '../config.js';
 import { getUserProfileDir } from './auth.service.js';
@@ -9,6 +10,7 @@ import { getSession, updateSessionMeta, extractTitleFromJsonl } from './session.
 export type ProcessEvent =
   | { type: 'text_delta'; text: string }
   | { type: 'thinking_delta'; text: string }
+  | { type: 'thinking_progress'; tokens: number }
   | { type: 'tool_start'; toolId: string; toolName: string; input: unknown }
   | { type: 'tool_end'; toolId: string; output: string; isError: boolean }
   | { type: 'permission_request'; requestId: string; toolName: string; toolInput: unknown; description: string }
@@ -40,11 +42,14 @@ export function getProcessEmitter(sessionId: string): EventEmitter | null {
   return activeProcesses.get(sessionId)?.emitter ?? null;
 }
 
+const SERVER_CLAUDE_DIR = join(process.env.HOME ?? '/root', '.claude');
+
 export function spawnClaudeProcess(
   sessionId: string,
   userId: string,
   message: string,
-  isResume: boolean
+  claudeSessionId: string | null,
+  opts: { model?: string; effort?: string; usesServerClaudeDir?: boolean } = {}
 ): EventEmitter {
   const existing = activeProcesses.get(sessionId);
   if (existing) {
@@ -52,26 +57,41 @@ export function spawnClaudeProcess(
     activeProcesses.delete(sessionId);
   }
 
-  const profileDir = getUserProfileDir(userId);
-  mkdirSync(profileDir, { recursive: true });
+  // Determine which config dir to use: server's own dir (for existing sessions)
+  // or the per-user isolated dir (for new ClaudeDeck sessions)
+  let claudeConfigDir: string;
+  if (opts.usesServerClaudeDir) {
+    claudeConfigDir = SERVER_CLAUDE_DIR;
+  } else {
+    claudeConfigDir = getUserProfileDir(userId);
+    mkdirSync(claudeConfigDir, { recursive: true });
+    const serverCredentials = join(SERVER_CLAUDE_DIR, '.credentials.json');
+    const userCredentials = join(claudeConfigDir, '.credentials.json');
+    if (existsSync(serverCredentials) && !existsSync(userCredentials)) {
+      try { symlinkSync(serverCredentials, userCredentials); } catch { /* ignore */ }
+    }
+  }
 
   const session = getSession(sessionId, userId);
-  const cwd = session?.projectPath ?? '/tmp';
+  const cwd = (opts.usesServerClaudeDir && session?.projectPath && session.projectPath !== '/tmp')
+    ? session.projectPath
+    : (session?.projectPath ?? '/tmp');
+
   const args = ['--output-format', 'stream-json', '--verbose'];
-  if (isResume) {
-    args.push('--resume', sessionId);
-  }
+  if (claudeSessionId) args.push('--resume', claudeSessionId);
+  if (opts.model) args.push('--model', opts.model);
+  if (opts.effort) args.push('--effort', opts.effort);
   args.push('-p', message);
 
   const ptyProcess = pty.spawn(config.claudeBin, args, {
     name: 'xterm-256color',
     cols: 220,
     rows: 50,
-    cwd,
+    cwd: existsSync(cwd) ? cwd : '/tmp',
     env: {
       ...process.env,
-      CLAUDE_CONFIG_DIR: profileDir,
-      HOME: profileDir,
+      CLAUDE_CONFIG_DIR: claudeConfigDir,
+      HOME: opts.usesServerClaudeDir ? (process.env.HOME ?? '/root') : claudeConfigDir,
       TERM: 'xterm-256color',
     },
   });
@@ -173,6 +193,21 @@ function handleStreamEvent(proc: ActiveProcess, event: Record<string, unknown>):
   const emit = (e: ProcessEvent) => proc.emitter.emit('event', e);
 
   switch (event.type) {
+    case 'system': {
+      if (event.subtype === 'init' && typeof event.session_id === 'string') {
+        updateSessionMeta(proc.sessionId, proc.userId, { claudeSessionId: event.session_id });
+      } else if (event.subtype === 'thinking_tokens' && typeof event.estimated_tokens === 'number') {
+        emit({ type: 'thinking_progress', tokens: event.estimated_tokens });
+      } else if (event.subtype === 'permission_request') {
+        const requestId = nanoid(8);
+        const toolName = String(event.tool_name ?? 'unknown');
+        const toolInput = event.tool_input ?? {};
+        const description = formatPermissionDescription(toolName, toolInput as Record<string, unknown>);
+        emit({ type: 'permission_request', requestId, toolName, toolInput, description });
+      }
+      break;
+    }
+
     case 'assistant': {
       const msg = event.message as Record<string, unknown>;
       const content = (msg?.content as unknown[]) ?? [];
@@ -215,24 +250,6 @@ function handleStreamEvent(proc: ActiveProcess, event: Record<string, unknown>):
             isError: Boolean(b.is_error),
           });
         }
-      }
-      break;
-    }
-
-    case 'system': {
-      if (event.subtype === 'permission_request') {
-        const requestId = nanoid(8);
-        const toolName = String(event.tool_name ?? 'unknown');
-        const toolInput = event.tool_input ?? {};
-        const description = formatPermissionDescription(toolName, toolInput as Record<string, unknown>);
-
-        emit({
-          type: 'permission_request',
-          requestId,
-          toolName,
-          toolInput,
-          description,
-        });
       }
       break;
     }

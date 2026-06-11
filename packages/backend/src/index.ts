@@ -63,8 +63,9 @@ async function buildApp() {
   fastify.get(
     '/ws',
     { websocket: true },
-    async (socket, request) => {
-      const ws = socket as unknown as import('ws').WebSocket;
+    async (connection, request) => {
+      // @fastify/websocket passes a Duplex stream as first arg; raw WebSocket is at .socket
+      const ws = (connection as any).socket as import('ws').WebSocket;
       try {
         await (request as any).jwtVerify();
       } catch {

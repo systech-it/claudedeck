@@ -4,7 +4,7 @@ import type { ToolName } from './tool.js';
 // ─── Client → Server ──────────────────────────────────────
 
 export type ClientMessage =
-  | { type: 'send_message'; sessionId: string; content: string }
+  | { type: 'send_message'; sessionId: string; content: string; model?: string; effort?: string }
   | { type: 'permission_response'; sessionId: string; requestId: string; allow: boolean }
   | { type: 'stop'; sessionId: string }
   | { type: 'ping' };
@@ -33,5 +33,6 @@ export type ServerMessage =
       costUsd?: number;
       durationMs?: number;
     }
+  | { type: 'thinking_progress'; sessionId: string; tokens: number }
   | { type: 'error'; sessionId: string; message: string }
   | { type: 'update_available'; version: string; releaseUrl: string; body: string };

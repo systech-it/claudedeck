@@ -30,13 +30,19 @@ export function initDb() {
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       title TEXT NOT NULL DEFAULT 'New session',
       project_path TEXT NOT NULL,
+      claude_session_id TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       message_count INTEGER NOT NULL DEFAULT 0,
       total_cost_usd REAL NOT NULL DEFAULT 0
     );
 
+
     CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_updated_at ON sessions(updated_at DESC);
   `);
+
+  // Incremental migrations — ignore errors if column already exists
+  try { sqlite.exec(`ALTER TABLE sessions ADD COLUMN claude_session_id TEXT`); } catch { /* already added */ }
+  try { sqlite.exec(`ALTER TABLE sessions ADD COLUMN uses_server_claude_dir INTEGER NOT NULL DEFAULT 0`); } catch { /* already added */ }
 }

@@ -1,11 +1,15 @@
+import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github-dark.css';
-import { Bot, User, DollarSign } from 'lucide-react';
+import { Bot, User, DollarSign, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ToolBlock } from './ToolBlock';
 import { ThinkingBlock } from './ThinkingBlock';
 import type { ChatMessage } from '@/stores/chat.store';
+
+// characters revealed per animation frame (~60fps → ~240 chars/s)
+const CHARS_PER_FRAME = 4;
 
 interface Props {
   message: ChatMessage;
@@ -13,6 +17,40 @@ interface Props {
 
 export function Message({ message }: Props) {
   const isUser = message.role === 'user';
+
+  // Start empty while streaming so we can animate; jump to full when done
+  const [displayedContent, setDisplayedContent] = useState(
+    message.isStreaming ? '' : message.content
+  );
+  const targetRef = useRef(message.content);
+  targetRef.current = message.content;
+
+  useEffect(() => {
+    if (!message.isStreaming) {
+      setDisplayedContent(message.content);
+      return;
+    }
+    if (!message.content) return;
+
+    // Animate from current length toward full content
+    let rafId: number;
+    const tick = () => {
+      setDisplayedContent((prev) => {
+        const target = targetRef.current;
+        if (prev.length >= target.length) return prev;
+        return target.slice(0, prev.length + CHARS_PER_FRAME);
+      });
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [message.isStreaming, message.content]);
+
+  const contentToShow = message.isStreaming ? displayedContent : message.content;
+  // Show thinking indicator while waiting for first content
+  const showThinkingIndicator = message.isStreaming && !message.content;
+  // Show blinking cursor while text is still being revealed
+  const showCursor = message.isStreaming && !!contentToShow;
 
   return (
     <div className={cn('group flex gap-3 px-4 py-3', isUser ? 'flex-row-reverse' : 'flex-row')}>
@@ -30,13 +68,28 @@ export function Message({ message }: Props) {
 
         {message.tools?.map((tool) => <ToolBlock key={tool.id} tool={tool} />)}
 
-        {message.content && (
+        {/* Thinking / waiting indicator */}
+        {showThinkingIndicator && (
+          <div className="flex items-center gap-2 rounded-lg bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+            <Brain className="h-4 w-4 shrink-0 animate-pulse text-primary/70" />
+            <span className="animate-pulse">
+              {message.thinkingTokens
+                ? `Thinking… ${message.thinkingTokens.toLocaleString()} tokens`
+                : 'Thinking…'}
+            </span>
+            <span className="ml-auto flex gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0ms]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:150ms]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:300ms]" />
+            </span>
+          </div>
+        )}
+
+        {contentToShow && (
           <div
             className={cn(
               'prose prose-sm prose-invert max-w-none rounded-lg px-4 py-3',
-              isUser
-                ? 'bg-primary/10 text-foreground'
-                : 'bg-muted/50 text-foreground'
+              isUser ? 'bg-primary/10 text-foreground' : 'bg-muted/50 text-foreground'
             )}
           >
             <ReactMarkdown
@@ -62,18 +115,18 @@ export function Message({ message }: Props) {
                     );
                   }
                   return (
-                    <code
-                      className="rounded bg-muted px-1 py-0.5 font-mono text-xs"
-                      {...props}
-                    >
+                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs" {...props}>
                       {children}
                     </code>
                   );
                 },
               }}
             >
-              {message.content}
+              {contentToShow}
             </ReactMarkdown>
+            {showCursor && (
+              <span className="inline-block h-4 w-0.5 bg-foreground/70 animate-pulse align-middle ml-0.5" />
+            )}
           </div>
         )}
 

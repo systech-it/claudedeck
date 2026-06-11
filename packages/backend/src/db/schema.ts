@@ -16,6 +16,8 @@ export const sessions = sqliteTable('sessions', {
     .references(() => users.id, { onDelete: 'cascade' }),
   title: text('title').notNull().default('New session'),
   projectPath: text('project_path').notNull(),
+  claudeSessionId: text('claude_session_id'),
+  usesServerClaudeDir: integer('uses_server_claude_dir', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
   messageCount: integer('message_count').notNull().default(0),

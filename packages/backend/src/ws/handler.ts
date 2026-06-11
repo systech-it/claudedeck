@@ -41,13 +41,17 @@ export function handleWsConnection(
   startPing();
 
   socket.on('message', async (raw: Buffer | string) => {
+    console.log('[ws] raw message received, length:', raw.toString().length);
     let msg: ClientMessage;
 
     try {
       msg = JSON.parse(raw.toString()) as ClientMessage;
     } catch {
+      console.log('[ws] parse error');
       return;
     }
+
+    console.log('[ws] message type:', msg.type);
 
     switch (msg.type) {
       case 'ping': {
@@ -57,20 +61,32 @@ export function handleWsConnection(
 
       case 'send_message': {
         const { sessionId, content } = msg;
+        console.log('[ws] send_message sessionId:', sessionId, 'content len:', content.length);
 
         let session = getSession(sessionId, userId);
-        const isResume = Boolean(session && session.id !== 'new');
+        console.log('[ws] session found:', !!session);
 
         if (!session) {
           session = createSession(userId, '/tmp');
+          console.log('[ws] created new session:', session.id);
         }
 
-        const emitter = spawnClaudeProcess(session.id, userId, content, isResume);
+        const claudeSessionId = session.claudeSessionId ?? null;
+        console.log('[ws] spawning claude, claudeSessionId:', claudeSessionId);
+        const emitter = spawnClaudeProcess(session.id, userId, content, claudeSessionId, {
+          model: (msg as { model?: string }).model,
+          effort: (msg as { effort?: string }).effort,
+          usesServerClaudeDir: session.usesServerClaudeDir ?? false,
+        });
 
         send({ type: 'session_ready', sessionId: session.id });
 
         emitter.on('event', (event) => {
           switch (event.type) {
+            case 'thinking_progress':
+              send({ type: 'thinking_progress', sessionId: session!.id, tokens: event.tokens });
+              break;
+
             case 'text_delta':
               send({ type: 'text_delta', sessionId: session!.id, text: event.text });
               break;
