@@ -233,29 +233,36 @@ export function getSessionHistory(sessionId: string, userId: string): HistoryMes
                 .filter((b) => b.type === 'tool_use' && b.id)
                 .map((b) => {
                   const result = toolResults.get(b.id!);
+                  const output = result?.output;
                   return {
                     id: b.id!,
                     name: b.name ?? 'unknown',
                     input: b.input ?? {},
-                    output: result?.output,
+                    // Ogranicz output do 2000 znaków żeby nie crashować przeglądarki
+                    output: output && output.length > 2000 ? output.slice(0, 2000) + '\n… (skrócono)' : output,
                     isError: result?.isError ?? false,
                   };
                 })
             : [];
 
-          if (text.trim() || tools.length > 0 || thinking.trim()) {
+          const thinkingTrimmed = thinking.trim();
+          if (text.trim() || tools.length > 0 || thinkingTrimmed) {
             messages.push({
               role: 'assistant',
               content: text.trim(),
               tools: tools.length > 0 ? tools : undefined,
-              thinking: thinking.trim() || undefined,
+              // Ogranicz thinking do 3000 znaków
+              thinking: thinkingTrimmed
+                ? (thinkingTrimmed.length > 3000 ? thinkingTrimmed.slice(0, 3000) + '\n… (skrócono)' : thinkingTrimmed)
+                : undefined,
             });
           }
         }
       } catch { /* skip malformed line */ }
     }
 
-    return messages;
+    // Zwróć tylko ostatnie 150 wiadomości, żeby nie crashować przeglądarki
+    return messages.length > 150 ? messages.slice(-150) : messages;
   } catch { return []; }
 }
 
