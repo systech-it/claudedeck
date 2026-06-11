@@ -134,6 +134,23 @@ export function ChatView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load history from JSONL when navigating to a session with no messages in store
+  useEffect(() => {
+    if (!activeSessionId || activeSessionId === 'new') return;
+    const existing = useChatStore.getState().messages[activeSessionId];
+    if (existing && existing.length > 0) return;
+    api.sessions.history(activeSessionId).then((msgs) => {
+      if (!msgs.length) return;
+      msgs.forEach((m) =>
+        useChatStore.getState().addMessage(activeSessionId, {
+          id: newMsgId(),
+          role: m.role,
+          content: m.content,
+        })
+      );
+    }).catch(() => {});
+  }, [activeSessionId]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, isStreaming]);

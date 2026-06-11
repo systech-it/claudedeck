@@ -4,7 +4,7 @@ import { readFileSync, existsSync, readdirSync, unlinkSync, statSync } from 'fs'
 import { join, basename } from 'path';
 import { db } from '../db/index.js';
 import { sessions, type DbSession } from '../db/schema.js';
-import type { SessionSummary, JsonlMessage } from '@claudedeck/shared';
+import type { SessionSummary, JsonlMessage, HistoryMessage } from '@claudedeck/shared';
 import { SESSION_TITLE_MAX_LENGTH } from '@claudedeck/shared';
 import { getUserProfileDir } from './auth.service.js';
 
@@ -158,6 +158,58 @@ function dbSessionToSummary(row: DbSession): SessionSummary {
     isActive: false,
     messageCount: row.messageCount,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Session history — parse JSONL and return messages for display
+// ---------------------------------------------------------------------------
+
+export function getSessionHistory(sessionId: string, userId: string): HistoryMessage[] {
+  const session = getSession(sessionId, userId);
+  if (!session) return [];
+
+  let filePath: string;
+  if (session.usesServerClaudeDir && session.claudeSessionId) {
+    const encodedPath = session.projectPath.replace(/\//g, '-');
+    filePath = join(SERVER_CLAUDE_DIR, 'projects', encodedPath, `${session.claudeSessionId}.jsonl`);
+  } else {
+    filePath = getSessionJsonlPath(userId, sessionId);
+  }
+
+  if (!existsSync(filePath)) return [];
+
+  try {
+    const lines = readFileSync(filePath, 'utf-8').split('\n').filter(Boolean);
+    const messages: HistoryMessage[] = [];
+
+    for (const line of lines) {
+      try {
+        const event = JSON.parse(line) as JsonlMessage;
+
+        if (event.type === 'user' && event.message?.role === 'user') {
+          const content = event.message.content;
+          const isToolResult = Array.isArray(content) && content.some((b) => b.type === 'tool_result');
+          if (isToolResult) continue;
+          const text = typeof content === 'string'
+            ? content
+            : Array.isArray(content)
+              ? content.filter((b) => b.type === 'text').map((b) => b.text ?? '').join('')
+              : '';
+          if (text.trim()) messages.push({ role: 'user', content: text.trim() });
+        }
+
+        if (event.type === 'assistant' && event.message?.role === 'assistant') {
+          const content = event.message.content;
+          const text = Array.isArray(content)
+            ? content.filter((b) => b.type === 'text').map((b) => b.text ?? '').join('')
+            : typeof content === 'string' ? content : '';
+          if (text.trim()) messages.push({ role: 'assistant', content: text.trim() });
+        }
+      } catch { /* skip malformed line */ }
+    }
+
+    return messages;
+  } catch { return []; }
 }
 
 // ---------------------------------------------------------------------------

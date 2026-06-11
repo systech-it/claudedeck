@@ -1,19 +1,35 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Square, ChevronUp, Cpu, Zap } from 'lucide-react';
+import { Send, Square, ChevronUp, Cpu, Zap, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-const MODELS = [
-  { id: 'claude-opus-4-8',            label: 'Opus 4'    },
-  { id: 'claude-sonnet-4-6',          label: 'Sonnet 4'  },
-  { id: 'claude-haiku-4-5-20251001',  label: 'Haiku 4'   },
+interface ModelOption {
+  id: string | undefined;
+  label: string;
+  sublabel: string;
+  desc: string;
+}
+
+const MODELS: ModelOption[] = [
+  { id: undefined,                    label: 'Default',    sublabel: 'Sonnet 4.6',  desc: 'Efficient for routine tasks (recommended)' },
+  { id: 'claude-fable-5',            label: 'Fable',      sublabel: 'Fable 5',     desc: 'Most capable · ~2× faster than Opus · uses your limits' },
+  { id: 'claude-opus-4-8',           label: 'Opus',       sublabel: 'Opus 4.8',    desc: 'Best for complex everyday tasks · ~2× usage vs Sonnet' },
+  { id: 'claude-haiku-4-5-20251001', label: 'Haiku',      sublabel: 'Haiku 4.5',   desc: 'Fastest for quick answers' },
 ];
 
-const EFFORTS = [
-  { id: 'low',    label: 'Low'    },
-  { id: 'medium', label: 'Medium' },
-  { id: 'high',   label: 'High'   },
-  { id: 'max',    label: 'Max'    },
+interface EffortOption {
+  id: string | undefined;
+  label: string;
+  desc: string;
+}
+
+const EFFORTS: EffortOption[] = [
+  { id: undefined,  label: 'Default', desc: 'Auto-selected by Claude'         },
+  { id: 'low',      label: 'Low',     desc: 'Minimal reasoning, faster'        },
+  { id: 'medium',   label: 'Medium',  desc: 'Balanced reasoning'               },
+  { id: 'high',     label: 'High',    desc: 'More thorough, slower'            },
+  { id: 'xhigh',    label: 'XHigh',   desc: 'Extended reasoning'               },
+  { id: 'max',      label: 'Max',     desc: 'Maximum reasoning, uses most tokens' },
 ];
 
 interface Props {
@@ -38,7 +54,6 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: Props) {
     ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
   }, [value]);
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
     if (!showModels && !showEfforts) return;
     const handler = () => { setShowModels(false); setShowEfforts(false); };
@@ -60,108 +75,122 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: Props) {
     setValue('');
   }
 
-  const activeModel = MODELS.find((m) => m.id === model);
-  const activeEffort = EFFORTS.find((e) => e.id === effort);
+  const activeModel = MODELS.find((m) => m.id === model) ?? MODELS[0];
+  const activeEffort = EFFORTS.find((e) => e.id === effort) ?? EFFORTS[0];
+  const modelActive = model !== undefined;
+  const effortActive = effort !== undefined;
 
   return (
     <div className="border-t border-border bg-background px-4 pb-4 pt-3">
-      {/* Option popups — open upward */}
       <div className="relative">
+        {/* Model picker popup */}
         {showModels && (
           <div
-            className="absolute bottom-full left-0 mb-1 z-50 min-w-[160px] rounded-lg border border-border bg-popover shadow-lg"
+            className="absolute bottom-full left-0 mb-2 z-50 w-72 rounded-xl border border-border bg-popover shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Model</div>
-            {MODELS.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => { setModel(m.id === model ? undefined : m.id); setShowModels(false); }}
-                className={cn(
-                  'flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors hover:bg-accent',
-                  model === m.id && 'bg-accent text-accent-foreground font-medium'
-                )}
-              >
-                {m.label}
-                {model === m.id && <span className="ml-auto text-xs text-primary">✓</span>}
-              </button>
-            ))}
-            {model && (
-              <button
-                onClick={() => { setModel(undefined); setShowModels(false); }}
-                className="w-full rounded px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent text-left"
-              >
-                Reset to default
-              </button>
-            )}
+            <div className="border-b border-border px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Select a model
+            </div>
+            {MODELS.map((m) => {
+              const isSelected = m.id === model;
+              return (
+                <button
+                  key={m.id ?? '_default'}
+                  onClick={() => { setModel(m.id); setShowModels(false); }}
+                  className={cn(
+                    'flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent',
+                    isSelected && 'bg-accent/60'
+                  )}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={cn('text-sm font-medium', isSelected ? 'text-foreground' : 'text-foreground/90')}>
+                        {m.label}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{m.sublabel}</span>
+                      {m.id === undefined && (
+                        <span className="ml-auto text-[10px] font-medium bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">
+                          recommended
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground leading-snug">{m.desc}</div>
+                  </div>
+                  {isSelected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />}
+                </button>
+              );
+            })}
           </div>
         )}
 
+        {/* Effort picker popup */}
         {showEfforts && (
           <div
-            className="absolute bottom-full left-28 mb-1 z-50 min-w-[140px] rounded-lg border border-border bg-popover shadow-lg"
+            className="absolute bottom-full left-28 mb-2 z-50 w-60 rounded-xl border border-border bg-popover shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Effort</div>
-            {EFFORTS.map((ef) => (
-              <button
-                key={ef.id}
-                onClick={() => { setEffort(ef.id === effort ? undefined : ef.id); setShowEfforts(false); }}
-                className={cn(
-                  'flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors hover:bg-accent',
-                  effort === ef.id && 'bg-accent text-accent-foreground font-medium'
-                )}
-              >
-                {ef.label}
-                {effort === ef.id && <span className="ml-auto text-xs text-primary">✓</span>}
-              </button>
-            ))}
-            {effort && (
-              <button
-                onClick={() => { setEffort(undefined); setShowEfforts(false); }}
-                className="w-full rounded px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent text-left"
-              >
-                Reset to default
-              </button>
-            )}
+            <div className="border-b border-border px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Thinking effort
+            </div>
+            {EFFORTS.map((ef) => {
+              const isSelected = ef.id === effort;
+              return (
+                <button
+                  key={ef.id ?? '_default'}
+                  onClick={() => { setEffort(ef.id); setShowEfforts(false); }}
+                  className={cn(
+                    'flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent',
+                    isSelected && 'bg-accent/60'
+                  )}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className={cn('text-sm font-medium', isSelected ? 'text-foreground' : 'text-foreground/90')}>
+                      {ef.label}
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground leading-snug">{ef.desc}</div>
+                  </div>
+                  {isSelected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />}
+                </button>
+              );
+            })}
           </div>
         )}
 
-        {/* Bottom bar with options + textarea + send */}
         <div className="flex flex-col gap-1.5">
           {/* Option chips */}
           <div className="flex items-center gap-1.5">
             <button
               onClick={(e) => { e.stopPropagation(); setShowModels((p) => !p); setShowEfforts(false); }}
               className={cn(
-                'flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors border',
-                activeModel
-                  ? 'border-primary/50 bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:bg-accent'
+                'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors border',
+                modelActive
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
             >
               <Cpu className="h-3 w-3" />
-              {activeModel ? activeModel.label : 'Model'}
-              <ChevronUp className={cn('h-3 w-3 transition-transform', showModels && 'rotate-180')} />
+              <span>{modelActive ? `${activeModel.label} · ${activeModel.sublabel}` : 'Model'}</span>
+              <ChevronUp className={cn('h-3 w-3 opacity-60 transition-transform', showModels && 'rotate-180')} />
             </button>
 
             <button
               onClick={(e) => { e.stopPropagation(); setShowEfforts((p) => !p); setShowModels(false); }}
               className={cn(
-                'flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors border',
-                activeEffort
-                  ? 'border-primary/50 bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:bg-accent'
+                'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors border',
+                effortActive
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
             >
               <Zap className="h-3 w-3" />
-              {activeEffort ? activeEffort.label : 'Effort'}
-              <ChevronUp className={cn('h-3 w-3 transition-transform', showEfforts && 'rotate-180')} />
+              <span>{effortActive ? `Effort · ${activeEffort.label}` : 'Effort'}</span>
+              <ChevronUp className={cn('h-3 w-3 opacity-60 transition-transform', showEfforts && 'rotate-180')} />
             </button>
           </div>
 
-          {/* Input area */}
-          <div className="flex items-end gap-2 rounded-lg border border-input bg-background focus-within:ring-1 focus-within:ring-ring">
+          {/* Input row */}
+          <div className="flex items-end gap-2 rounded-xl border border-input bg-input focus-within:border-ring focus-within:ring-1 focus-within:ring-ring transition-shadow">
             <textarea
               ref={textareaRef}
               value={value}
@@ -170,9 +199,7 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: Props) {
               placeholder="Message Claude Code… (Enter to send, Shift+Enter for newline)"
               disabled={isStreaming || disabled}
               rows={1}
-              className={cn(
-                'max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50'
-              )}
+              className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
             />
             <div className="p-2">
               {isStreaming ? (
@@ -194,7 +221,7 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: Props) {
         </div>
       </div>
 
-      <p className="mt-1.5 text-center text-xs text-muted-foreground/50">
+      <p className="mt-1.5 text-center text-xs text-muted-foreground/40">
         ClaudeDeck by SysTech — Claude Code CLI interface
       </p>
     </div>

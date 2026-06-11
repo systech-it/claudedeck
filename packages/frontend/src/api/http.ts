@@ -1,4 +1,4 @@
-import type { AuthResponse, LoginRequest, RegisterRequest, SessionSummary, VersionInfo } from '@claudedeck/shared';
+import type { AuthResponse, LoginRequest, RegisterRequest, SessionSummary, VersionInfo, HistoryMessage } from '@claudedeck/shared';
 
 const BASE = '';
 
@@ -46,6 +46,7 @@ export const api = {
         body: JSON.stringify({ title }),
       }),
     delete: (id: string) => request<void>(`/api/sessions/${id}`, { method: 'DELETE' }),
+    history: (id: string) => request<HistoryMessage[]>(`/api/sessions/${id}/history`),
   },
 
   system: {

@@ -50,6 +50,11 @@ export interface JsonlContent {
   isError?: boolean;
 }
 
+export interface HistoryMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;

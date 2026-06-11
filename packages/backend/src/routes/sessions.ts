@@ -7,6 +7,7 @@ import {
   renameSession,
   deleteSession,
   syncServerSessions,
+  getSessionHistory,
 } from '../services/session.service.js';
 
 const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
@@ -55,6 +56,13 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
 
     renameSession(id, userId, body.data.title);
     return reply.status(204).send();
+  });
+
+  fastify.get('/api/sessions/:id/history', auth, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { userId } = request.user;
+    const messages = getSessionHistory(id, userId);
+    return reply.send(messages);
   });
 
   fastify.delete('/api/sessions/:id', auth, async (request, reply) => {
