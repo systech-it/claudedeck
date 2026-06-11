@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  typecheck-and-lint:
+    name: Typecheck & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared
+        run: npm run build -w @claudedeck/shared
+
+      - name: Typecheck all packages
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+  build-docker:
+    name: Docker build test
+    runs-on: ubuntu-latest
+    needs: typecheck-and-lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: false
+          tags: claudedeck:ci-test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

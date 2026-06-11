@@ -1,0 +1,45 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    container_name: claudedeck-backend-dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+      - "9229:9229"   # Node.js debugger
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/packages/shared/node_modules
+      - /app/packages/backend/node_modules
+      - claudedeck-dev-data:/app/data
+      - /usr/local/bin/claude:/usr/local/bin/claude:ro
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - JWT_SECRET=dev-secret-not-for-production
+      - DATA_DIR=/app/data
+      - CLAUDE_BIN=/usr/local/bin/claude
+      - GITHUB_OWNER=systech-it
+      - GITHUB_REPO=claudedeck
+    working_dir: /app/packages/backend
+
+  frontend:
+    image: node:20-alpine
+    container_name: claudedeck-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/packages/shared/node_modules
+      - /app/packages/frontend/node_modules
+    working_dir: /app/packages/frontend
+    command: sh -c "npm run dev -- --host 0.0.0.0"
+    environment:
+      - VITE_API_URL=http://localhost:3000
+
+volumes:
+  claudedeck-dev-data:

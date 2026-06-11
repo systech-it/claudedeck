@@ -1,0 +1,32 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.bak
+*.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Data volumes
+data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Docker
+.dockerignore

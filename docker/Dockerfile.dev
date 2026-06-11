@@ -1,0 +1,19 @@
+FROM node:20-alpine
+
+RUN apk add --no-cache python3 make g++ git bash curl
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/backend/package.json ./packages/backend/
+COPY packages/frontend/package.json ./packages/frontend/
+
+RUN npm ci
+
+ENV NODE_ENV=development
+
+EXPOSE 3000
+
+WORKDIR /app/packages/backend
+CMD ["npx", "tsx", "watch", "src/index.ts"]

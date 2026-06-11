@@ -1,0 +1,32 @@
+services:
+  claudedeck:
+    image: ghcr.io/systech-it/claudedeck:latest
+    container_name: claudedeck
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - claudedeck-data:/app/data
+      # Mount your claude CLI binary from the host:
+      - /usr/local/bin/claude:/usr/local/bin/claude:ro
+      # Optional: mount Docker socket for one-click updates:
+      # - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - DATA_DIR=/app/data
+      - CLAUDE_BIN=/usr/local/bin/claude
+      - GITHUB_OWNER=systech-it
+      - GITHUB_REPO=claudedeck
+      # - GITHUB_TOKEN=${GITHUB_TOKEN}
+      # - CORS_ORIGINS=https://your.domain.com
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  claudedeck-data:
