@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, LogOut, Wifi, WifiOff } from 'lucide-react';
+import { Settings, LogOut, Wifi, WifiOff, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/auth.store';
 import { useChatStore } from '@/stores/chat.store';
+import { useThemeStore } from '@/stores/theme.store';
 import { wsClient } from '@/api/ws';
 import { SessionList } from '@/components/sessions/SessionList';
 import { UpdateBanner } from '@/components/UpdateBanner';
@@ -16,6 +17,7 @@ export function AppLayout({ children }: Props) {
   const navigate = useNavigate();
   const { user, clearAuth } = useAuthStore();
   const { wsConnected, setWsConnected } = useChatStore();
+  const { theme, toggle: toggleTheme } = useThemeStore();
 
   useEffect(() => {
     wsClient.connect();
@@ -40,6 +42,17 @@ export function AppLayout({ children }: Props) {
         <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <span className="flex-1 font-logo text-base font-semibold tracking-tight text-foreground">ClaudeDeck</span>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="h-6 w-6"
+            >
+              {theme === 'dark'
+                ? <Sun className="h-3.5 w-3.5" />
+                : <Moon className="h-3.5 w-3.5" />}
+            </Button>
             {wsConnected ? (
               <Wifi className="h-3.5 w-3.5 text-green-400" aria-label="Connected" />
             ) : (

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useChatStore, newMsgId } from '@/stores/chat.store';
 import { useSessionStore } from '@/stores/session.store';
@@ -8,7 +8,17 @@ import { Message } from './Message';
 import { ChatInput } from './ChatInput';
 import { PermissionDialog } from './PermissionDialog';
 import type { ServerMessage } from '@claudedeck/shared';
-import { Bot } from 'lucide-react';
+import { Bot, Cpu, Zap } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useSettingsStore } from '@/stores/settings.store';
+
+// Map model IDs to short display labels
+const MODEL_LABELS: Record<string, string> = {
+  'claude-fable-5':            'Fable 5',
+  'claude-opus-4-8':           'Opus 4.8',
+  'claude-sonnet-4-6':         'Sonnet 4.6',
+  'claude-haiku-4-5-20251001': 'Haiku 4.5',
+};
 
 export function ChatView() {
   const { sessionId } = useParams<{ sessionId?: string }>();
@@ -16,9 +26,14 @@ export function ChatView() {
   const navigate = useNavigate();
   const bottomRef = useRef<HTMLDivElement>(null);
   const currentMsgIdRef = useRef<string | null>(null);
-  // Keep a ref so the stable WS listener always has the latest activeSessionId
   const activeSessionIdRef = useRef(activeSessionId);
   activeSessionIdRef.current = activeSessionId;
+
+  const { defaultModel, defaultEffort } = useSettingsStore();
+
+  // Model/effort owned here so they're visible in the header; init from user defaults
+  const [model, setModel] = useState<string | undefined>(defaultModel);
+  const [effort, setEffort] = useState<string | undefined>(defaultEffort);
 
   const messages = useChatStore((s) => s.messages[activeSessionId] ?? []);
   const isStreaming = useChatStore((s) => s.streamingIds.has(activeSessionId));
@@ -38,6 +53,23 @@ export function ChatView() {
     setStreaming,
   } = useChatStore();
 
+  // Load history from JSONL when navigating to a session with no messages in store
+  useEffect(() => {
+    if (!activeSessionId || activeSessionId === 'new') return;
+    const existing = useChatStore.getState().messages[activeSessionId];
+    if (existing && existing.length > 0) return;
+    api.sessions.history(activeSessionId).then((msgs) => {
+      if (!msgs.length) return;
+      msgs.forEach((m) =>
+        useChatStore.getState().addMessage(activeSessionId, {
+          id: newMsgId(),
+          role: m.role,
+          content: m.content,
+        })
+      );
+    }).catch(() => {});
+  }, [activeSessionId]);
+
   useEffect(() => {
     const unsub = wsClient.onMessage((msg: ServerMessage) => {
       const sid = 'sessionId' in msg ? (msg as { sessionId: string }).sessionId : activeSessionIdRef.current;
@@ -49,10 +81,8 @@ export function ChatView() {
 
           const currentActiveId = activeSessionIdRef.current;
           if (sid !== currentActiveId) {
-            // Backend created a new session — move any locally-added user messages to it
             const pending = useChatStore.getState().messages[currentActiveId] ?? [];
             pending.forEach((pm) => useChatStore.getState().addMessage(sid, pm));
-            // Navigate to the real session and refresh sidebar
             navigate(`/session/${sid}`);
             api.sessions.list().then(setSessions).catch(console.error);
           }
@@ -110,7 +140,6 @@ export function ChatView() {
             currentMsgIdRef.current = null;
           }
           setStreaming(sid, false);
-          // Refresh sidebar so the session title/count updates
           api.sessions.list().then(setSessions).catch(console.error);
           break;
 
@@ -130,37 +159,20 @@ export function ChatView() {
     });
 
     return unsub;
-    // navigate, setSessions, and store actions are all stable references
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // stable WS listener — navigate, setSessions and store actions are stable references
+    // eslint-disable-next-line -- react-hooks/exhaustive-deps not configured
   }, []);
-
-  // Load history from JSONL when navigating to a session with no messages in store
-  useEffect(() => {
-    if (!activeSessionId || activeSessionId === 'new') return;
-    const existing = useChatStore.getState().messages[activeSessionId];
-    if (existing && existing.length > 0) return;
-    api.sessions.history(activeSessionId).then((msgs) => {
-      if (!msgs.length) return;
-      msgs.forEach((m) =>
-        useChatStore.getState().addMessage(activeSessionId, {
-          id: newMsgId(),
-          role: m.role,
-          content: m.content,
-        })
-      );
-    }).catch(() => {});
-  }, [activeSessionId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, isStreaming]);
 
   const handleSend = useCallback(
-    (content: string, model?: string, effort?: string) => {
+    (content: string) => {
       addMessage(activeSessionId, { id: newMsgId(), role: 'user', content });
       wsClient.send({ type: 'send_message', sessionId: activeSessionId, content, model, effort });
     },
-    [activeSessionId, addMessage]
+    [activeSessionId, addMessage, model, effort]
   );
 
   const handleStop = useCallback(() => {
@@ -182,8 +194,29 @@ export function ChatView() {
     [activeSessionId, permission, setPermission]
   );
 
+  const modelLabel = model ? MODEL_LABELS[model] ?? model : null;
+
   return (
     <div className="flex h-full flex-col">
+      {/* Model/effort status bar — always visible */}
+      <div className="flex items-center gap-2 border-b border-border bg-muted/20 px-4 py-1.5">
+        <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Chat settings:</span>
+        <span className={cn(
+          'flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+          model ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
+        )}>
+          <Cpu className="h-2.5 w-2.5" />
+          {modelLabel ?? 'Default · Sonnet 4.6'}
+        </span>
+        <span className={cn(
+          'flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+          effort ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
+        )}>
+          <Zap className="h-2.5 w-2.5" />
+          Effort · {effort ?? 'Default'}
+        </span>
+      </div>
+
       <div className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
@@ -208,6 +241,10 @@ export function ChatView() {
         onStop={handleStop}
         isStreaming={isStreaming}
         disabled={!wsConnected}
+        model={model}
+        effort={effort}
+        onModelChange={setModel}
+        onEffortChange={setEffort}
       />
     </div>
   );

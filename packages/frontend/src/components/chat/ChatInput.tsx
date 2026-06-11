@@ -10,7 +10,7 @@ interface ModelOption {
   desc: string;
 }
 
-const MODELS: ModelOption[] = [
+export const MODELS: ModelOption[] = [
   { id: undefined,                    label: 'Default',    sublabel: 'Sonnet 4.6',  desc: 'Efficient for routine tasks (recommended)' },
   { id: 'claude-fable-5',            label: 'Fable',      sublabel: 'Fable 5',     desc: 'Most capable · ~2× faster than Opus · uses your limits' },
   { id: 'claude-opus-4-8',           label: 'Opus',       sublabel: 'Opus 4.8',    desc: 'Best for complex everyday tasks · ~2× usage vs Sonnet' },
@@ -23,26 +23,29 @@ interface EffortOption {
   desc: string;
 }
 
-const EFFORTS: EffortOption[] = [
-  { id: undefined,  label: 'Default', desc: 'Auto-selected by Claude'         },
-  { id: 'low',      label: 'Low',     desc: 'Minimal reasoning, faster'        },
-  { id: 'medium',   label: 'Medium',  desc: 'Balanced reasoning'               },
-  { id: 'high',     label: 'High',    desc: 'More thorough, slower'            },
-  { id: 'xhigh',    label: 'XHigh',   desc: 'Extended reasoning'               },
-  { id: 'max',      label: 'Max',     desc: 'Maximum reasoning, uses most tokens' },
+export const EFFORTS: EffortOption[] = [
+  { id: undefined,  label: 'Default', desc: 'Auto-selected by Claude'              },
+  { id: 'low',      label: 'Low',     desc: 'Minimal reasoning, faster'             },
+  { id: 'medium',   label: 'Medium',  desc: 'Balanced reasoning'                    },
+  { id: 'high',     label: 'High',    desc: 'More thorough, slower'                 },
+  { id: 'xhigh',    label: 'XHigh',   desc: 'Extended reasoning'                    },
+  { id: 'max',      label: 'Max',     desc: 'Maximum reasoning, uses most tokens'   },
 ];
 
 interface Props {
-  onSend: (content: string, model?: string, effort?: string) => void;
+  onSend: (content: string) => void;
   onStop: () => void;
   isStreaming: boolean;
   disabled?: boolean;
+  // Controlled model/effort from parent (ChatView)
+  model: string | undefined;
+  effort: string | undefined;
+  onModelChange: (m: string | undefined) => void;
+  onEffortChange: (e: string | undefined) => void;
 }
 
-export function ChatInput({ onSend, onStop, isStreaming, disabled }: Props) {
+export function ChatInput({ onSend, onStop, isStreaming, disabled, model, effort, onModelChange, onEffortChange }: Props) {
   const [value, setValue] = useState('');
-  const [model, setModel] = useState<string | undefined>(undefined);
-  const [effort, setEffort] = useState<string | undefined>(undefined);
   const [showModels, setShowModels] = useState(false);
   const [showEfforts, setShowEfforts] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -71,14 +74,14 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: Props) {
   function handleSend() {
     const trimmed = value.trim();
     if (!trimmed || isStreaming || disabled) return;
-    onSend(trimmed, model, effort);
+    onSend(trimmed);
     setValue('');
   }
 
   const activeModel = MODELS.find((m) => m.id === model) ?? MODELS[0];
   const activeEffort = EFFORTS.find((e) => e.id === effort) ?? EFFORTS[0];
-  const modelActive = model !== undefined;
-  const effortActive = effort !== undefined;
+  const modelIsDefault = model === undefined;
+  const effortIsDefault = effort === undefined;
 
   return (
     <div className="border-t border-border bg-background px-4 pb-4 pt-3">
@@ -97,7 +100,7 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: Props) {
               return (
                 <button
                   key={m.id ?? '_default'}
-                  onClick={() => { setModel(m.id); setShowModels(false); }}
+                  onClick={() => { onModelChange(m.id); setShowModels(false); }}
                   className={cn(
                     'flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent',
                     isSelected && 'bg-accent/60'
@@ -105,9 +108,7 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: Props) {
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className={cn('text-sm font-medium', isSelected ? 'text-foreground' : 'text-foreground/90')}>
-                        {m.label}
-                      </span>
+                      <span className="text-sm font-medium text-foreground">{m.label}</span>
                       <span className="text-xs text-muted-foreground">{m.sublabel}</span>
                       {m.id === undefined && (
                         <span className="ml-auto text-[10px] font-medium bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">
@@ -138,16 +139,14 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: Props) {
               return (
                 <button
                   key={ef.id ?? '_default'}
-                  onClick={() => { setEffort(ef.id); setShowEfforts(false); }}
+                  onClick={() => { onEffortChange(ef.id); setShowEfforts(false); }}
                   className={cn(
                     'flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent',
                     isSelected && 'bg-accent/60'
                   )}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className={cn('text-sm font-medium', isSelected ? 'text-foreground' : 'text-foreground/90')}>
-                      {ef.label}
-                    </div>
+                    <div className="text-sm font-medium text-foreground">{ef.label}</div>
                     <div className="mt-0.5 text-xs text-muted-foreground leading-snug">{ef.desc}</div>
                   </div>
                   {isSelected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />}
@@ -158,19 +157,23 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: Props) {
         )}
 
         <div className="flex flex-col gap-1.5">
-          {/* Option chips */}
+          {/* Option chips — always show current selection */}
           <div className="flex items-center gap-1.5">
             <button
               onClick={(e) => { e.stopPropagation(); setShowModels((p) => !p); setShowEfforts(false); }}
               className={cn(
                 'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors border',
-                modelActive
+                !modelIsDefault
                   ? 'border-primary/40 bg-primary/10 text-primary'
                   : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
             >
               <Cpu className="h-3 w-3" />
-              <span>{modelActive ? `${activeModel.label} · ${activeModel.sublabel}` : 'Model'}</span>
+              <span>
+                {modelIsDefault
+                  ? `Default · ${activeModel.sublabel}`
+                  : `${activeModel.label} · ${activeModel.sublabel}`}
+              </span>
               <ChevronUp className={cn('h-3 w-3 opacity-60 transition-transform', showModels && 'rotate-180')} />
             </button>
 
@@ -178,13 +181,13 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: Props) {
               onClick={(e) => { e.stopPropagation(); setShowEfforts((p) => !p); setShowModels(false); }}
               className={cn(
                 'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors border',
-                effortActive
+                !effortIsDefault
                   ? 'border-primary/40 bg-primary/10 text-primary'
                   : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
             >
               <Zap className="h-3 w-3" />
-              <span>{effortActive ? `Effort · ${activeEffort.label}` : 'Effort'}</span>
+              <span>Effort · {activeEffort.label}</span>
               <ChevronUp className={cn('h-3 w-3 opacity-60 transition-transform', showEfforts && 'rotate-180')} />
             </button>
           </div>
