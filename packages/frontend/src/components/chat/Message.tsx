@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github-dark.css';
-import { Bot, User, DollarSign, Brain, Wrench } from 'lucide-react';
+import { Bot, User, DollarSign, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ToolBlock } from './ToolBlock';
 import { ThinkingBlock } from './ThinkingBlock';
@@ -62,20 +62,11 @@ export function Message({ message }: Props) {
 
       <div className={cn('min-w-0 max-w-[85%] flex flex-col gap-1.5', isUser ? 'items-end' : 'items-start')}>
 
-        {/* ── WORKFLOW PANEL (thinking + tools) — clearly not a chat bubble ── */}
+        {/* ── WORKFLOW (thinking + tools) — subtle, secondary ── */}
         {!isUser && (hasThinking || hasTools) && (
-          <div className="w-full rounded-lg overflow-hidden border border-border bg-muted/30 dark:bg-muted/20">
-            {/* Panel header */}
-            <div className="flex items-center gap-1.5 border-b border-border bg-muted/60 dark:bg-muted/40 px-2.5 py-1">
-              <Wrench className="h-3 w-3 text-muted-foreground" />
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Work
-              </span>
-            </div>
-            <div className="p-2 space-y-1">
-              {hasThinking && <ThinkingBlock text={message.thinking!} />}
-              {message.tools?.map((tool) => <ToolBlock key={tool.id} tool={tool} />)}
-            </div>
+          <div className="w-full border-l-2 border-border/40 pl-3 space-y-1 opacity-70 hover:opacity-100 transition-opacity">
+            {hasThinking && <ThinkingBlock text={message.thinking!} />}
+            {message.tools?.map((tool) => <ToolBlock key={tool.id} tool={tool} />)}
           </div>
         )}
 
