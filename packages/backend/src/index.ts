@@ -15,6 +15,7 @@ import { handleWsConnection } from './ws/handler.js';
 import authRoutes from './routes/auth.js';
 import sessionRoutes from './routes/sessions.js';
 import systemRoutes from './routes/system.js';
+import usageRoutes from './routes/usage.js';
 import type { AuthTokenPayload } from '@claudedeck/shared';
 
 declare module '@fastify/jwt' {
@@ -89,6 +90,7 @@ async function buildApp() {
   await fastify.register(authRoutes);
   await fastify.register(sessionRoutes);
   await fastify.register(systemRoutes);
+  await fastify.register(usageRoutes);
 
   const frontendDist = join(__dirname, '../../frontend/dist');
   if (existsSync(frontendDist)) {

@@ -49,6 +49,14 @@ export const api = {
     history: (id: string) => request<HistoryMessage[]>(`/api/sessions/${id}/history`),
   },
 
+  usage: {
+    get: () => request<{
+      fiveHour: { utilization: number; resetAt: number } | null;
+      sevenDay: { utilization: number; resetAt: number } | null;
+      fetchedAt: number;
+    }>('/api/usage'),
+  },
+
   system: {
     version: () => request<{ version: string }>('/api/system/version'),
     updateCheck: () => request<VersionInfo>('/api/system/update-check'),

@@ -8,6 +8,7 @@ import { useThemeStore } from '@/stores/theme.store';
 import { wsClient } from '@/api/ws';
 import { SessionList } from '@/components/sessions/SessionList';
 import { UpdateBanner } from '@/components/UpdateBanner';
+import { UsageBar } from './UsageBar';
 
 interface Props {
   children: React.ReactNode;
@@ -64,7 +65,8 @@ export function AppLayout({ children }: Props) {
             <SessionList />
           </div>
 
-          <div className="border-t border-border p-3">
+          <div className="border-t border-border p-3 space-y-2">
+            <UsageBar />
             <div className="flex items-center gap-2">
               <span className="flex-1 truncate text-xs text-muted-foreground">{user?.username}</span>
               <Button
