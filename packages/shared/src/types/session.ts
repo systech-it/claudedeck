@@ -43,16 +43,27 @@ export interface JsonlContent {
   type: 'text' | 'tool_use' | 'tool_result' | 'thinking';
   text?: string;
   id?: string;
+  tool_use_id?: string;
   name?: string;
   input?: unknown;
   content?: JsonlContent[] | string;
   thinking?: string;
-  isError?: boolean;
+  is_error?: boolean;
+}
+
+export interface HistoryToolCall {
+  id: string;
+  name: string;
+  input: unknown;
+  output?: string;
+  isError: boolean;
 }
 
 export interface HistoryMessage {
   role: 'user' | 'assistant';
   content: string;
+  tools?: HistoryToolCall[];
+  thinking?: string;
 }
 
 export interface TokenUsage {

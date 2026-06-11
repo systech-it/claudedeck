@@ -65,6 +65,15 @@ export function ChatView() {
           id: newMsgId(),
           role: m.role,
           content: m.content,
+          thinking: m.thinking,
+          // Convert HistoryToolCall[] → ToolBlock[] for display
+          tools: m.tools?.map((t) => ({
+            id: t.id,
+            name: t.name as import('@claudedeck/shared').ToolName,
+            input: t.input,
+            output: t.output,
+            status: t.isError ? ('error' as const) : ('success' as const),
+          })),
         })
       );
     }).catch(() => {});

@@ -180,16 +180,38 @@ export function getSessionHistory(sessionId: string, userId: string): HistoryMes
 
   try {
     const lines = readFileSync(filePath, 'utf-8').split('\n').filter(Boolean);
-    const messages: HistoryMessage[] = [];
 
+    // First pass: index all tool results by tool_use_id
+    const toolResults = new Map<string, { output: string; isError: boolean }>();
+    for (const line of lines) {
+      try {
+        const event = JSON.parse(line) as JsonlMessage;
+        if (event.type === 'user' && event.message?.role === 'user') {
+          const content = event.message.content;
+          if (!Array.isArray(content)) continue;
+          for (const b of content) {
+            if (b.type === 'tool_result' && b.tool_use_id) {
+              const outputContent = b.content;
+              const output = Array.isArray(outputContent)
+                ? outputContent.filter((c) => c.type === 'text').map((c) => c.text ?? '').join('')
+                : typeof outputContent === 'string' ? outputContent : '';
+              toolResults.set(b.tool_use_id, { output, isError: Boolean(b.is_error) });
+            }
+          }
+        }
+      } catch { /* skip */ }
+    }
+
+    // Second pass: build messages with tool blocks
+    const messages: HistoryMessage[] = [];
     for (const line of lines) {
       try {
         const event = JSON.parse(line) as JsonlMessage;
 
         if (event.type === 'user' && event.message?.role === 'user') {
           const content = event.message.content;
-          const isToolResult = Array.isArray(content) && content.some((b) => b.type === 'tool_result');
-          if (isToolResult) continue;
+          const isOnlyToolResults = Array.isArray(content) && content.every((b) => b.type === 'tool_result');
+          if (isOnlyToolResults) continue;
           const text = typeof content === 'string'
             ? content
             : Array.isArray(content)
@@ -203,7 +225,32 @@ export function getSessionHistory(sessionId: string, userId: string): HistoryMes
           const text = Array.isArray(content)
             ? content.filter((b) => b.type === 'text').map((b) => b.text ?? '').join('')
             : typeof content === 'string' ? content : '';
-          if (text.trim()) messages.push({ role: 'assistant', content: text.trim() });
+          const thinking = Array.isArray(content)
+            ? content.filter((b) => b.type === 'thinking').map((b) => b.thinking ?? '').join('')
+            : '';
+          const tools = Array.isArray(content)
+            ? content
+                .filter((b) => b.type === 'tool_use' && b.id)
+                .map((b) => {
+                  const result = toolResults.get(b.id!);
+                  return {
+                    id: b.id!,
+                    name: b.name ?? 'unknown',
+                    input: b.input ?? {},
+                    output: result?.output,
+                    isError: result?.isError ?? false,
+                  };
+                })
+            : [];
+
+          if (text.trim() || tools.length > 0 || thinking.trim()) {
+            messages.push({
+              role: 'assistant',
+              content: text.trim(),
+              tools: tools.length > 0 ? tools : undefined,
+              thinking: thinking.trim() || undefined,
+            });
+          }
         }
       } catch { /* skip malformed line */ }
     }
