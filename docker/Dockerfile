@@ -6,6 +6,7 @@ WORKDIR /build
 COPY package.json package-lock.json* ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/frontend/package.json ./packages/frontend/
+COPY packages/backend/package.json ./packages/backend/
 
 RUN npm ci --workspace=@claudedeck/shared --workspace=@claudedeck/frontend
 
@@ -19,11 +20,14 @@ RUN npm run build -w @claudedeck/frontend
 # ─── Stage 2: Build backend ──────────────────────────────
 FROM node:20-alpine AS backend-builder
 
+RUN apk add --no-cache python3 make g++
+
 WORKDIR /build
 
 COPY package.json package-lock.json* ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/backend/package.json ./packages/backend/
+COPY packages/frontend/package.json ./packages/frontend/
 
 RUN npm ci --workspace=@claudedeck/shared --workspace=@claudedeck/backend
 
@@ -44,6 +48,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/backend/package.json ./packages/backend/
+COPY packages/frontend/package.json ./packages/frontend/
 
 RUN npm ci --workspace=@claudedeck/shared --workspace=@claudedeck/backend --omit=dev
 

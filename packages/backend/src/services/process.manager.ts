@@ -68,6 +68,7 @@ export function spawnClaudeProcess(
     const existing = activeProcesses.get(sessionId);
     if (existing) {
       try { existing.pty.write(message + '\n'); } catch { /* process może już być martwy */ }
+      setTimeout(() => existing.emitter.emit('event', { type: 'message_complete' } satisfies ProcessEvent), 1500);
       return existing.emitter;
     }
   }
@@ -142,9 +143,11 @@ export function spawnClaudeProcess(
   activeProcesses.set(sessionId, proc);
 
   if (opts.remoteControl) {
-    // RC REPL: wyślij pierwszą wiadomość jako czysty tekst po inicjalizacji REPL (2s)
+    // RC REPL: wyślij pierwszą wiadomość po inicjalizacji REPL (2s)
+    // Odpowiedź trafia do claude.ai/code, nie przez PTY — od razu kończymy streaming
     setTimeout(() => {
       try { ptyProcess.write(message + '\n'); } catch { /* process may have exited */ }
+      setTimeout(() => emitter.emit('event', { type: 'message_complete' } satisfies ProcessEvent), 1500);
     }, 2000);
   } else if (hasAttachments) {
     const content = buildContent(message, opts.attachments);
@@ -162,7 +165,9 @@ export function spawnClaudeProcess(
   ptyProcess.onExit(({ exitCode }) => {
     flushBuffer(proc);
     activeProcesses.delete(sessionId);
-    if (exitCode !== 0 && exitCode !== undefined) {
+    // Eksity przez sygnały (128-143: SIGHUP=129, SIGINT=130, SIGKILL=137) są normalne przy STOP
+    const isSignalExit = exitCode !== undefined && exitCode > 128 && exitCode <= 143;
+    if (exitCode !== 0 && exitCode !== undefined && !isSignalExit) {
       emitter.emit('event', { type: 'error', message: `Process exited with code ${exitCode}` } satisfies ProcessEvent);
     }
     emitter.emit('event', { type: 'exit' } satisfies ProcessEvent);
