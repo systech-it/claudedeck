@@ -85,7 +85,7 @@ chore: bump fastify to 4.28.1
 - TypeScript strict mode everywhere
 - No `any` types without justification
 - Prefer named exports over default exports (exception: page components)
-- Comments in English only
+- All documentation, comments, and commit messages in English
 
 ## Reporting Issues
 

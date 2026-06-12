@@ -1,6 +1,6 @@
 {
   "name": "@claudedeck/backend",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "ClaudeDeck backend server",
   "author": "SysTech Łukasz Grzywacki",
   "license": "MIT",

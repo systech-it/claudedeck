@@ -20,14 +20,39 @@ Browser  ──WebSocket──►  ClaudeDeck  ──subprocess──►  claude
 
 ## Features
 
+**Chat**
 - **Real-time streaming** — responses stream token by token via WebSocket
 - **Tool use blocks** — collapsible panels showing Bash, Read, Write, Edit and other tool calls with inputs and outputs
-- **Thinking blocks** — Claude's internal reasoning displayed in collapsed blocks
+- **Thinking blocks** — Claude's internal reasoning displayed in collapsed expandable blocks
 - **Permission dialogs** — approve or deny tool execution directly from the browser
-- **Session management** — list, resume, rename, and delete sessions
-- **Multi-user** — each user has their own isolated session history and account
-- **Update notifications** — banner appears when a new version is available on GitHub
-- **Dark mode** — default dark theme
+- **File attachments** — images (inline base64) and text documents; paste from clipboard or drag & drop
+- **Token and cost display** — per-message usage and cost shown after each response
+- **Rate limit usage bars** — 5-hour and 7-day usage with live progress bars in the chat header
+
+**Model & parameters**
+- **Model selector** — Default (Sonnet 4.6), Fable 5, Opus 4.8, Haiku 4.5
+- **Effort selector** — Default, Low, Medium, High, XHigh, Max (disabled automatically for Haiku)
+- **Permission mode** — Ask, Auto-edit, Plan, Auto
+
+**Session management**
+- List, resume, rename, delete sessions
+- Search sessions by title
+- Time-since badges on each session
+- Auto-import of existing Claude Code sessions from the server's `~/.claude/projects/`
+- History always freshly loaded from JSONL on navigation (never stale cache)
+
+**Authentication**
+- JWT-based login
+- **First-run setup** — on first launch a "Create admin account" form appears; registration is disabled after that
+- First user automatically gets admin rights
+
+**UI / UX**
+- Dark and light theme with toggle
+- Sidebar with session list and search (288px wide)
+- Version number displayed next to the logo
+- Scrollable settings page
+- Visible scrollbars
+- Update notification banner when a new GitHub release is available
 
 ---
 
@@ -37,7 +62,7 @@ Browser  ──WebSocket──►  ClaudeDeck  ──subprocess──►  claude
 - **Node.js >= 20** + npm >= 10 (for bare deployment)
 - Or **Docker + Docker Compose v2** (for containerized deployment)
 
-> **No Anthropic API key needed at registration.** ClaudeDeck uses whatever authentication
+> **No Anthropic API key needed.** ClaudeDeck uses whatever authentication
 > Claude Code already has on the server — subscription credentials or a server-level
 > `ANTHROPIC_API_KEY` set once in `.env`.
 
@@ -59,7 +84,7 @@ npm run build
 node packages/backend/dist/index.js
 ```
 
-Open http://localhost:3000, register your account, start chatting.
+Open http://localhost:3000 — on first launch you will be prompted to create an admin account.
 
 ### With Docker
 
@@ -123,9 +148,16 @@ claudedeck/
 │   └── frontend/   React + Vite SPA
 ├── docker/         Dockerfiles
 ├── .github/        GitHub Actions (CI + release pipeline)
+├── CHANGELOG.md
 ├── CONTRIBUTING.md
 └── DEPLOYMENT.md
 ```
+
+---
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 ---
 

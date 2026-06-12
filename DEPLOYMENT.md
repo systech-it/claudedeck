@@ -40,7 +40,7 @@ docker compose up -d
 docker compose logs -f   # watch startup logs
 ```
 
-Open http://localhost:3000 — register your first account (automatically granted admin rights).
+Open http://localhost:3000 — on first launch you will be prompted to create an admin account.
 
 ---
 
@@ -133,11 +133,13 @@ After starting, ClaudeDeck listens on `PORT` (default: **3000**).
 | Server (no proxy) | http://your-server-ip:3000 |
 | With reverse proxy | https://claudedeck.yourdomain.com |
 
-The first time you open the UI you will see the **login page**.
-Switch to the **Register** tab, enter a username and password — that's all.
-The first registered user is automatically made **admin**.
+### First launch — admin setup
 
-No API key is needed at registration. ClaudeDeck uses Claude Code's own authentication
+The first time you open the UI you will see a **"Pierwsze uruchomienie" (First run)** screen
+prompting you to create an admin account. Enter a username and password — that's all.
+After the account is created, the registration endpoint is permanently disabled.
+
+No API key is needed. ClaudeDeck uses Claude Code's own authentication
 (subscription credentials stored by `claude` on the server, or `ANTHROPIC_API_KEY` from `.env`).
 
 ---
@@ -207,6 +209,9 @@ npm run build
 systemctl restart claudedeck
 ```
 
+> **Note:** After an update, restart the service manually if running via systemd.
+> Never restart via the ClaudeDeck web UI itself — it would break the active WebSocket session.
+
 ---
 
 ## Data Persistence
@@ -215,10 +220,11 @@ All user data is stored in `DATA_DIR` (default: `./data`):
 
 ```
 data/
-├── claudedeck.db          # SQLite database (users, session metadata)
+├── claudedeck.db                   # SQLite database (users, session metadata)
+├── deleted_server_sessions.json    # Blocklist of explicitly deleted server sessions
 └── profiles/
     └── {userId}/
-        └── claude/        # Per-user Claude Code profile + JSONL session files
+        └── claude/                 # Per-user Claude Code profile + JSONL session files
 ```
 
 ### Backup
@@ -264,6 +270,10 @@ systemctl start claudedeck
 - Check `DATA_DIR` is writable by the process user
 - Verify the path exists: `ls -la $DATA_DIR`
 
-**First login fails / no register button**
-- ClaudeDeck is not in single-user mode — use the Register tab on the login page
-- The first registered user gets admin rights automatically
+**Deleted sessions reappear after refresh**
+- This is fixed in v1.0.0 via `deleted_server_sessions.json` blocklist
+- If upgrading from an older version, verify `DATA_DIR` is writable
+
+**First login shows only login form, not admin setup**
+- An admin account already exists — use the login form with existing credentials
+- If you need to reset: delete `data/claudedeck.db` (loses all sessions and users)
