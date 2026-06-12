@@ -68,7 +68,8 @@ export function spawnClaudeProcess(
     const existing = activeProcesses.get(sessionId);
     if (existing) {
       try { existing.pty.write(message + '\n'); } catch { /* process może już być martwy */ }
-      setTimeout(() => existing.emitter.emit('event', { type: 'message_complete' } satisfies ProcessEvent), 1500);
+      existing.emitter.emit('event', { type: 'text_delta', text: '*Wiadomość wysłana do sesji Remote Control — odpowiedź pojawi się na [claude.ai/code](https://claude.ai/code)*' } satisfies ProcessEvent);
+      setTimeout(() => existing.emitter.emit('event', { type: 'message_complete' } satisfies ProcessEvent), 300);
       return existing.emitter;
     }
   }
@@ -144,10 +145,11 @@ export function spawnClaudeProcess(
 
   if (opts.remoteControl) {
     // RC REPL: wyślij pierwszą wiadomość po inicjalizacji REPL (2s)
-    // Odpowiedź trafia do claude.ai/code, nie przez PTY — od razu kończymy streaming
+    // Odpowiedź trafia do claude.ai/code — pokazujemy info w czacie
     setTimeout(() => {
       try { ptyProcess.write(message + '\n'); } catch { /* process may have exited */ }
-      setTimeout(() => emitter.emit('event', { type: 'message_complete' } satisfies ProcessEvent), 1500);
+      emitter.emit('event', { type: 'text_delta', text: '*Sesja Remote Control aktywna — wiadomość wysłana. Odpowiedź pojawi się na [claude.ai/code](https://claude.ai/code)*' } satisfies ProcessEvent);
+      setTimeout(() => emitter.emit('event', { type: 'message_complete' } satisfies ProcessEvent), 300);
     }, 2000);
   } else if (hasAttachments) {
     const content = buildContent(message, opts.attachments);
