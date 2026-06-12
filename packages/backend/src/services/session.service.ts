@@ -1,6 +1,6 @@
 import { eq, desc, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
-import { readFileSync, existsSync, readdirSync, unlinkSync, statSync } from 'fs';
+import { readFileSync, existsSync, readdirSync, unlinkSync, statSync, writeFileSync } from 'fs';
 import { join, basename } from 'path';
 import { db } from '../db/index.js';
 import { sessions, type DbSession } from '../db/schema.js';
@@ -62,6 +62,13 @@ export function deleteSession(sessionId: string, userId: string): void {
 
   const jsonlPath = getSessionJsonlPath(userId, sessionId);
   if (existsSync(jsonlPath)) unlinkSync(jsonlPath);
+
+  // Jeśli to sesja z serwera, dodaj claudeSessionId do blocklist żeby sync jej nie re-importował
+  if (session.claudeSessionId && session.usesServerClaudeDir) {
+    const list = loadDeletedList();
+    list.add(session.claudeSessionId);
+    saveDeletedList(list);
+  }
 
   db.delete(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.userId, userId))).run();
 }
@@ -274,6 +281,26 @@ export function getSessionHistory(sessionId: string, userId: string): HistoryMes
 
 const SERVER_CLAUDE_DIR = join(process.env.HOME ?? '/root', '.claude');
 
+// ── Deleted server sessions blocklist ──────────────────────────────────────
+// Tracks claudeSessionIds explicitly deleted by user so syncServerSessions
+// doesn't re-import them on next refresh.
+const DELETED_LIST_PATH = join(process.env.DATA_DIR ?? '/root/claudedeck/data', 'deleted_server_sessions.json');
+
+function loadDeletedList(): Set<string> {
+  try {
+    const raw = readFileSync(DELETED_LIST_PATH, 'utf-8');
+    return new Set(JSON.parse(raw) as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDeletedList(set: Set<string>): void {
+  try {
+    writeFileSync(DELETED_LIST_PATH, JSON.stringify([...set]), 'utf-8');
+  } catch { /* ignore */ }
+}
+
 function extractFirstUserMessage(filePath: string): string | null {
   try {
     const lines = readFileSync(filePath, 'utf-8').split('\n').filter(Boolean);
@@ -319,6 +346,9 @@ export function syncServerSessions(userId: string): void {
       if (!claudeSessionId.match(/^[0-9a-f-]{36}$/)) continue;
 
       const filePath = join(pdir, file);
+
+      // Skip sessions explicitly deleted by user
+      if (loadDeletedList().has(claudeSessionId)) continue;
 
       // Check if already imported
       const existing = db
