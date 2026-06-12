@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Settings, LogOut, Wifi, WifiOff, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useChatStore } from '@/stores/chat.store';
 import { useThemeStore } from '@/stores/theme.store';
 import { wsClient } from '@/api/ws';
+import { api } from '@/api/http';
 import { SessionList } from '@/components/sessions/SessionList';
 import { UpdateBanner } from '@/components/UpdateBanner';
 
@@ -18,6 +19,11 @@ export function AppLayout({ children }: Props) {
   const { user, clearAuth } = useAuthStore();
   const { wsConnected, setWsConnected } = useChatStore();
   const { theme, toggle: toggleTheme } = useThemeStore();
+  const [version, setVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.system.version().then((r) => setVersion(r.version)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     wsClient.connect();
@@ -41,7 +47,10 @@ export function AppLayout({ children }: Props) {
       <div className="flex flex-1 overflow-hidden">
         <aside className="flex w-72 shrink-0 flex-col border-r border-border bg-card">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-            <span className="flex-1 font-logo text-base font-semibold tracking-tight claude-gradient-text">ClaudeDeck</span>
+            <span className="flex items-baseline gap-1.5 flex-1 min-w-0">
+              <span className="font-logo text-base font-semibold tracking-tight claude-gradient-text">ClaudeDeck</span>
+              {version && <span className="text-[10px] text-muted-foreground/60 font-mono">v{version}</span>}
+            </span>
             <Button
               size="icon"
               variant="ghost"
