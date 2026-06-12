@@ -81,11 +81,13 @@ function SessionItem({
             autoFocus
           />
         ) : (
-          <span className="block truncate text-xs leading-snug">{session.title}</span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="truncate text-xs leading-snug flex-1">{session.title}</span>
+            <span className="shrink-0 rounded px-1 py-0 text-[9px] font-medium bg-muted text-muted-foreground/70 whitespace-nowrap">
+              {timeAgo(session.updatedAt)}
+            </span>
+          </div>
         )}
-        <span className="text-[10px] text-muted-foreground/50 mt-0.5 block">
-          {timeAgo(session.updatedAt)}
-        </span>
       </div>
 
       {!editing && (

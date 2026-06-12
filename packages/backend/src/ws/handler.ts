@@ -135,6 +135,13 @@ export function handleWsConnection(
             case 'error':
               send({ type: 'error', sessionId: session!.id, message: event.message });
               break;
+
+            case 'exit':
+              // Proces zakończył się — upewnij się że streaming jest wyczyszczony
+              // (message_complete lub error mogły już być wysłane wcześniej, ale for safety)
+              send({ type: 'message_complete', sessionId: session!.id });
+              break;
+
           }
         });
 
@@ -148,6 +155,8 @@ export function handleWsConnection(
 
       case 'stop': {
         stopProcess(msg.sessionId);
+        // Natychmiast zakończ streaming na frontendzie nie czekając na exit
+        send({ type: 'message_complete', sessionId: msg.sessionId });
         break;
       }
     }

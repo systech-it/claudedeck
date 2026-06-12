@@ -162,6 +162,9 @@ export function spawnClaudeProcess(
   ptyProcess.onExit(({ exitCode }) => {
     flushBuffer(proc);
     activeProcesses.delete(sessionId);
+    if (exitCode !== 0 && exitCode !== undefined) {
+      emitter.emit('event', { type: 'error', message: `Process exited with code ${exitCode}` } satisfies ProcessEvent);
+    }
     emitter.emit('event', { type: 'exit' } satisfies ProcessEvent);
 
     const title = extractTitleFromJsonl(userId, sessionId);

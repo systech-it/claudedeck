@@ -39,7 +39,7 @@ export function AppLayout({ children }: Props) {
       <UpdateBanner />
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
+        <aside className="flex w-72 shrink-0 flex-col border-r border-border bg-card">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <span className="flex-1 font-logo text-base font-semibold tracking-tight claude-gradient-text">ClaudeDeck</span>
             <Button
