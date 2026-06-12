@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { createUser, verifyUser } from '../services/auth.service.js';
+import { createUser, verifyUser, hasAnyUsers } from '../services/auth.service.js';
 import type { AuthResponse } from '@claudedeck/shared';
 
 const registerSchema = z.object({
@@ -14,7 +14,14 @@ const loginSchema = z.object({
 });
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.get('/api/auth/setup-status', async (_request, reply) => {
+    return reply.send({ needsSetup: !hasAnyUsers() });
+  });
+
   fastify.post('/api/auth/register', async (request, reply) => {
+    if (hasAnyUsers()) {
+      return reply.status(403).send({ error: 'Registration is disabled — admin account already exists' });
+    }
     const body = registerSchema.safeParse(request.body);
     if (!body.success) {
       return reply.status(400).send({ error: body.error.flatten() });

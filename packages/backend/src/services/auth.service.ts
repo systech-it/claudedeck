@@ -53,3 +53,7 @@ export function getUserProfileDir(userId: string): string {
   return join(config.dataDir, 'profiles', userId, 'claude');
 }
 
+export function hasAnyUsers(): boolean {
+  return db.select({ id: users.id }).from(users).limit(1).all().length > 0;
+}
+

@@ -30,6 +30,7 @@ export const api = {
     register: (data: RegisterRequest) =>
       request<AuthResponse>('/api/auth/register', { method: 'POST', body: JSON.stringify(data) }),
     me: () => request<{ id: string; username: string; isAdmin: boolean }>('/api/auth/me'),
+    setupStatus: () => request<{ needsSetup: boolean }>('/api/auth/setup-status'),
   },
 
   sessions: {
