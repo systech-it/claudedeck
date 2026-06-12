@@ -108,3 +108,4 @@ jobs:
             Created by **SysTech Łukasz Grzywacki** — https://github.com/systech-it/claudedeck
           draft: false
           prerelease: false
+          update_release: true
