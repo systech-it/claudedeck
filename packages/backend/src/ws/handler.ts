@@ -68,7 +68,6 @@ export function handleWsConnection(
           model: (msg as { model?: string }).model,
           effort: (msg as { effort?: string }).effort,
           permissionMode: (msg as { permissionMode?: string }).permissionMode,
-          remoteControl: (msg as { remoteControl?: boolean }).remoteControl,
           attachments: (msg as { attachments?: Array<{ name: string; mimeType: string; data: string }> }).attachments,
           usesServerClaudeDir: session.usesServerClaudeDir ?? false,
         });

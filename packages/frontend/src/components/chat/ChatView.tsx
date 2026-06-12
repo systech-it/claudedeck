@@ -36,7 +36,6 @@ export function ChatView() {
   const [model, setModel] = useState<string | undefined>(defaultModel);
   const [effort, setEffort] = useState<string | undefined>(defaultEffort);
   const [permissionMode, setPermissionMode] = useState<string>('default');
-  const [remoteControl, setRemoteControl] = useState(false);
 
   const messages = useChatStore((s) => s.messages[activeSessionId] ?? []);
   const isStreaming = useChatStore((s) => s.streamingIds.has(activeSessionId));
@@ -193,10 +192,9 @@ export function ChatView() {
         effort,
         permissionMode: permissionMode !== 'default' ? permissionMode : undefined,
         attachments: attachments.length > 0 ? attachments.map(({ name, mimeType, data }) => ({ name, mimeType, data })) : undefined,
-        remoteControl: remoteControl || undefined,
       });
     },
-    [activeSessionId, addMessage, model, effort, permissionMode, remoteControl]
+    [activeSessionId, addMessage, model, effort, permissionMode]
   );
 
   const handleStop = useCallback(() => {
@@ -289,11 +287,9 @@ export function ChatView() {
         model={model}
         effort={effort}
         permissionMode={permissionMode}
-        remoteControl={remoteControl}
         onModelChange={setModel}
         onEffortChange={setEffort}
         onPermissionModeChange={setPermissionMode}
-        onRemoteControlChange={setRemoteControl}
       />
     </div>
   );

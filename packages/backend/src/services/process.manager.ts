@@ -61,18 +61,8 @@ export function spawnClaudeProcess(
   userId: string,
   message: string,
   claudeSessionId: string | null,
-  opts: { model?: string; effort?: string; permissionMode?: string; remoteControl?: boolean; usesServerClaudeDir?: boolean; attachments?: Array<{ name: string; mimeType: string; data: string }> } = {}
+  opts: { model?: string; effort?: string; permissionMode?: string; usesServerClaudeDir?: boolean; attachments?: Array<{ name: string; mimeType: string; data: string }> } = {}
 ): EventEmitter {
-  // Dla Remote Control: jeśli proces już żyje, wyślij kolejną wiadomość jako czysty tekst do REPL
-  if (opts.remoteControl) {
-    const existing = activeProcesses.get(sessionId);
-    if (existing) {
-      try { existing.pty.write(message + '\n'); } catch { /* process może już być martwy */ }
-      existing.emitter.emit('event', { type: 'text_delta', text: '*Wiadomość wysłana do sesji Remote Control — odpowiedź pojawi się na [claude.ai/code](https://claude.ai/code)*' } satisfies ProcessEvent);
-      setTimeout(() => existing.emitter.emit('event', { type: 'message_complete' } satisfies ProcessEvent), 300);
-      return existing.emitter;
-    }
-  }
 
   const existing = activeProcesses.get(sessionId);
   if (existing) {
@@ -80,11 +70,9 @@ export function spawnClaudeProcess(
     activeProcesses.delete(sessionId);
   }
 
-  // Determine which config dir to use: server's own dir (for existing sessions and RC)
-  // or the per-user isolated dir (for new ClaudeDeck sessions)
-  // RC zawsze używa serwer dir — potrzebuje prawdziwych credentials do claude.ai/code
+  // Determine which config dir to use: server's own dir or per-user isolated dir
   let claudeConfigDir: string;
-  if (opts.usesServerClaudeDir || opts.remoteControl) {
+  if (opts.usesServerClaudeDir) {
     claudeConfigDir = SERVER_CLAUDE_DIR;
   } else {
     claudeConfigDir = getUserProfileDir(userId);
@@ -103,19 +91,14 @@ export function spawnClaudeProcess(
 
   const hasAttachments = opts.attachments && opts.attachments.length > 0;
 
-  // RC mode musi działać BEZ --output-format stream-json — ten flag wyłącza RC sesję na claude.ai/code
-  const args: string[] = opts.remoteControl
-    ? ['--remote-control']
-    : ['--output-format', 'stream-json', '--verbose'];
+  const args: string[] = ['--output-format', 'stream-json', '--verbose'];
 
   if (claudeSessionId) args.push('--resume', claudeSessionId);
   if (opts.model) args.push('--model', opts.model);
   if (opts.effort) args.push('--effort', opts.effort);
   if (opts.permissionMode) args.push('--permission-mode', opts.permissionMode);
 
-  if (opts.remoteControl) {
-    // REPL mode z Remote Control — bez stream-json, bez -p
-  } else if (hasAttachments) {
+  if (hasAttachments) {
     args.push('--input-format', 'stream-json', '--print');
   } else {
     args.push('-p', message);
@@ -147,15 +130,7 @@ export function spawnClaudeProcess(
 
   activeProcesses.set(sessionId, proc);
 
-  if (opts.remoteControl) {
-    // RC REPL: wyślij pierwszą wiadomość po inicjalizacji REPL (2s)
-    // Odpowiedź trafia do claude.ai/code — pokazujemy info w czacie
-    setTimeout(() => {
-      try { ptyProcess.write(message + '\n'); } catch { /* process may have exited */ }
-      emitter.emit('event', { type: 'text_delta', text: '*Sesja Remote Control aktywna — wiadomość wysłana. Odpowiedź pojawi się na [claude.ai/code](https://claude.ai/code)*' } satisfies ProcessEvent);
-      setTimeout(() => emitter.emit('event', { type: 'message_complete' } satisfies ProcessEvent), 300);
-    }, 2000);
-  } else if (hasAttachments) {
+  if (hasAttachments) {
     const content = buildContent(message, opts.attachments);
     const inputLine = JSON.stringify({ type: 'user', message: { role: 'user', content } });
     setTimeout(() => {

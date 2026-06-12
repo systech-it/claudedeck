@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Square, ChevronUp, Cpu, Zap, Check, ShieldCheck, Paperclip, X, Radio } from 'lucide-react';
+import { Send, Square, ChevronUp, Cpu, Zap, Check, ShieldCheck, Paperclip, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -96,17 +96,15 @@ interface Props {
   model: string | undefined;
   effort: string | undefined;
   permissionMode: string;
-  remoteControl: boolean;
   onModelChange: (m: string | undefined) => void;
   onEffortChange: (e: string | undefined) => void;
   onPermissionModeChange: (m: string) => void;
-  onRemoteControlChange: (v: boolean) => void;
 }
 
 export function ChatInput({
   onSend, onStop, isStreaming, disabled,
-  model, effort, permissionMode, remoteControl,
-  onModelChange, onEffortChange, onPermissionModeChange, onRemoteControlChange,
+  model, effort, permissionMode,
+  onModelChange, onEffortChange, onPermissionModeChange,
 }: Props) {
   const [value, setValue] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -340,25 +338,7 @@ export function ChatInput({
               <ChevronUp className={cn('h-3 w-3 opacity-60 transition-transform', showModes && 'rotate-180')} />
             </button>
 
-            <button
-              onClick={() => onRemoteControlChange(!remoteControl)}
-              title={remoteControl ? 'Remote Control ON — bypasses all permission prompts' : 'Remote Control OFF — click to enable (dangerous)'}
-              className={cn(
-                'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors border',
-                remoteControl
-                  ? 'border-red-500/60 bg-red-500/15 text-red-600 dark:text-red-400'
-                  : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground'
-              )}
-            >
-              <Radio className="h-3 w-3" />
-              <span>Remote Control</span>
-              <span className={cn(
-                'ml-0.5 rounded-full px-1 py-0 text-[9px] font-bold tracking-wider',
-                remoteControl ? 'bg-red-500/20 text-red-600 dark:text-red-400' : 'bg-muted text-muted-foreground'
-              )}>
-                {remoteControl ? 'ON' : 'OFF'}
-              </span>
-            </button>
+
           </div>
 
           {/* Attachment previews */}
