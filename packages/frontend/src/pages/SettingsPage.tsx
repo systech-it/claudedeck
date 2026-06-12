@@ -25,6 +25,7 @@ export default function SettingsPage() {
 
   return (
     <AppLayout>
+      <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-xl px-6 py-8">
         <div className="mb-6 flex items-center gap-3">
           <Button size="icon" variant="ghost" onClick={() => navigate('/')}>
@@ -143,6 +144,7 @@ export default function SettingsPage() {
             </p>
           </section>
         </div>
+      </div>
       </div>
     </AppLayout>
   );

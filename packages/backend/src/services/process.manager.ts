@@ -63,13 +63,11 @@ export function spawnClaudeProcess(
   claudeSessionId: string | null,
   opts: { model?: string; effort?: string; permissionMode?: string; remoteControl?: boolean; usesServerClaudeDir?: boolean; attachments?: Array<{ name: string; mimeType: string; data: string }> } = {}
 ): EventEmitter {
-  // Dla Remote Control: jeśli proces już żyje, wyślij kolejną wiadomość do istniejącego stdin
+  // Dla Remote Control: jeśli proces już żyje, wyślij kolejną wiadomość jako czysty tekst do REPL
   if (opts.remoteControl) {
     const existing = activeProcesses.get(sessionId);
     if (existing) {
-      const content = buildContent(message, opts.attachments);
-      const inputLine = JSON.stringify({ type: 'user', message: { role: 'user', content } });
-      try { existing.pty.write(inputLine + '\n'); } catch { /* process może już być martwy */ }
+      try { existing.pty.write(message + '\n'); } catch { /* process może już być martwy */ }
       return existing.emitter;
     }
   }
@@ -108,8 +106,9 @@ export function spawnClaudeProcess(
   if (opts.permissionMode) args.push('--permission-mode', opts.permissionMode);
 
   if (opts.remoteControl) {
-    // Tryb interaktywny z Remote Control: proces żyje przez całą sesję, wiadomości przez stdin
-    args.push('--remote-control', '--input-format', 'stream-json');
+    // REPL mode z Remote Control: proces żyje przez całą sesję, wiadomości jako czysty tekst na stdin
+    // NIE używamy --input-format stream-json ani -p, żeby REPL uruchomił się i stworzył RC sesję
+    args.push('--remote-control');
   } else if (hasAttachments) {
     args.push('--input-format', 'stream-json', '--print');
   } else {
@@ -142,8 +141,12 @@ export function spawnClaudeProcess(
 
   activeProcesses.set(sessionId, proc);
 
-  // Dla RC i załączników — wyślij pierwszą wiadomość przez stdin zamiast -p
-  if (opts.remoteControl || hasAttachments) {
+  if (opts.remoteControl) {
+    // RC REPL: wyślij pierwszą wiadomość jako czysty tekst po inicjalizacji REPL (2s)
+    setTimeout(() => {
+      try { ptyProcess.write(message + '\n'); } catch { /* process may have exited */ }
+    }, 2000);
+  } else if (hasAttachments) {
     const content = buildContent(message, opts.attachments);
     const inputLine = JSON.stringify({ type: 'user', message: { role: 'user', content } });
     setTimeout(() => {
