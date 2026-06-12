@@ -80,10 +80,11 @@ export function spawnClaudeProcess(
     activeProcesses.delete(sessionId);
   }
 
-  // Determine which config dir to use: server's own dir (for existing sessions)
+  // Determine which config dir to use: server's own dir (for existing sessions and RC)
   // or the per-user isolated dir (for new ClaudeDeck sessions)
+  // RC zawsze używa serwer dir — potrzebuje prawdziwych credentials do claude.ai/code
   let claudeConfigDir: string;
-  if (opts.usesServerClaudeDir) {
+  if (opts.usesServerClaudeDir || opts.remoteControl) {
     claudeConfigDir = SERVER_CLAUDE_DIR;
   } else {
     claudeConfigDir = getUserProfileDir(userId);
@@ -101,16 +102,19 @@ export function spawnClaudeProcess(
     : (session?.projectPath ?? '/tmp');
 
   const hasAttachments = opts.attachments && opts.attachments.length > 0;
-  const args = ['--output-format', 'stream-json', '--verbose'];
+
+  // RC mode musi działać BEZ --output-format stream-json — ten flag wyłącza RC sesję na claude.ai/code
+  const args: string[] = opts.remoteControl
+    ? ['--remote-control']
+    : ['--output-format', 'stream-json', '--verbose'];
+
   if (claudeSessionId) args.push('--resume', claudeSessionId);
   if (opts.model) args.push('--model', opts.model);
   if (opts.effort) args.push('--effort', opts.effort);
   if (opts.permissionMode) args.push('--permission-mode', opts.permissionMode);
 
   if (opts.remoteControl) {
-    // REPL mode z Remote Control: proces żyje przez całą sesję, wiadomości jako czysty tekst na stdin
-    // NIE używamy --input-format stream-json ani -p, żeby REPL uruchomił się i stworzył RC sesję
-    args.push('--remote-control');
+    // REPL mode z Remote Control — bez stream-json, bez -p
   } else if (hasAttachments) {
     args.push('--input-format', 'stream-json', '--print');
   } else {
