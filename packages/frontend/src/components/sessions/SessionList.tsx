@@ -83,7 +83,7 @@ function SessionItem({
         ) : (
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="truncate text-xs leading-snug flex-1">{session.title}</span>
-            <span className="shrink-0 rounded px-1 py-0 text-[9px] font-medium bg-muted text-muted-foreground/70 whitespace-nowrap">
+            <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-primary/15 text-primary whitespace-nowrap">
               {timeAgo(session.updatedAt)}
             </span>
           </div>
